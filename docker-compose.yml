@@ -1,0 +1,227 @@
+networks:
+  ai-mesh:
+    driver: bridge
+  ai-stack:
+    external: true
+    name: ai-stack_default
+
+services:
+  # --- Infrastructure ---
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-mesh-redis
+    restart: unless-stopped
+    ports:
+      - "${PORT_REDIS:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # --- AI Proxies ---
+
+  claude-proxy:
+    image: python:3.12-slim
+    container_name: ai-mesh-claude-proxy
+    restart: unless-stopped
+    ports:
+      - "${PORT_CLAUDE_PROXY:-8100}:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./proxies/claude:/app
+      - ./shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  chatgpt-proxy:
+    image: python:3.12-slim
+    container_name: ai-mesh-chatgpt-proxy
+    restart: unless-stopped
+    ports:
+      - "${PORT_CHATGPT_PROXY:-8101}:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./proxies/chatgpt:/app
+      - ./shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  grok-proxy:
+    image: python:3.12-slim
+    container_name: ai-mesh-grok-proxy
+    restart: unless-stopped
+    ports:
+      - "${PORT_GROK_PROXY:-8102}:8000"
+    environment:
+      - XAI_API_KEY=${XAI_API_KEY}
+    volumes:
+      - ./proxies/grok:/app
+      - ./shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  gemini-proxy:
+    image: python:3.12-slim
+    container_name: ai-mesh-gemini-proxy
+    restart: unless-stopped
+    ports:
+      - "${PORT_GEMINI_PROXY:-8103}:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - ./proxies/gemini:/app
+      - ./shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  deepseek-proxy:
+    image: python:3.12-slim
+    container_name: ai-mesh-deepseek-proxy
+    restart: unless-stopped
+    ports:
+      - "${PORT_DEEPSEEK_PROXY:-8105}:8000"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - ./proxies/deepseek:/app
+      - ./shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # --- Claude Code API ---
+
+  claude-code:
+    build: ./claude-code
+    container_name: ai-mesh-claude-code
+    restart: unless-stopped
+    ports:
+      - "${PORT_CLAUDE_CODE:-8104}:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - claude-code-workspace:/workspace
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # --- AI Router ---
+
+  ai-router:
+    image: python:3.12-slim
+    container_name: ai-mesh-router
+    restart: unless-stopped
+    ports:
+      - "${PORT_AI_ROUTER:-8110}:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./router:/app
+      - ./shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      claude-proxy:
+        condition: service_healthy
+      chatgpt-proxy:
+        condition: service_healthy
+      grok-proxy:
+        condition: service_healthy
+      gemini-proxy:
+        condition: service_healthy
+      deepseek-proxy:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # --- Workflow Automation ---
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: ai-mesh-n8n
+    restart: unless-stopped
+    ports:
+      - "${PORT_N8N:-5678}:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - WEBHOOK_URL=http://n8n:5678/
+      - N8N_RUNNERS_ENABLED=true
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./n8n:/home/node/workflows
+    networks:
+      - ai-mesh
+      - ai-stack
+
+volumes:
+  redis-data:
+  claude-code-workspace:
+  n8n-data:
