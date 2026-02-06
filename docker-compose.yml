@@ -221,6 +221,42 @@ services:
       - ai-mesh
       - ai-stack
 
+  # --- Business Agents ---
+
+  crewai-agents:
+    build: ./agents
+    container_name: ai-mesh-crewai
+    restart: unless-stopped
+    ports:
+      - "8120:8000"
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - CLOUDFLARE_API_KEY=${CLOUDFLARE_API_KEY}
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
+      - SPENDING_LIMIT_PER_ACTION=${SPENDING_LIMIT_PER_ACTION:-20}
+      - SPENDING_LIMIT_DAILY=${SPENDING_LIMIT_DAILY:-100}
+      - SPENDING_LIMIT_MONTHLY=${SPENDING_LIMIT_MONTHLY:-500}
+      - REVENUE_REINVEST_PERCENT=${REVENUE_REINVEST_PERCENT:-10}
+      - OWNER_EMAIL=${OWNER_EMAIL:-}
+    depends_on:
+      ai-router:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   redis-data:
   claude-code-workspace:

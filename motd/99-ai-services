@@ -8,15 +8,10 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
 BLUE='\033[0;34m'
+DIM='\033[2m'
 NC='\033[0m'
 
 IP=$(hostname -I | awk '{print $1}')
-
-echo ""
-echo -e "${BOLD}${CYAN}============================================${NC}"
-echo -e "${BOLD}${CYAN}          AI SERVER SERVICES                ${NC}"
-echo -e "${BOLD}${CYAN}============================================${NC}"
-echo ""
 
 # Function to check service (HTTP)
 check_service() {
@@ -44,7 +39,13 @@ check_tcp_service() {
     fi
 }
 
-echo -e "${BOLD} AI Mesh (Router & Proxies)${NC}"
+echo ""
+echo -e "${BOLD}${CYAN}============================================${NC}"
+echo -e "${BOLD}${CYAN}          AI SERVER SERVICES                ${NC}"
+echo -e "${BOLD}${CYAN}============================================${NC}"
+echo ""
+
+echo -e "${BOLD} AI Mesh${NC}"
 echo -e " ${YELLOW}─────────────────────────────────────────${NC}"
 check_service "AI Router"        8110  "Auto-routing, fan-out, delegation"
 check_service "Claude Proxy"     8100  "Anthropic API"
@@ -54,9 +55,10 @@ check_service "Gemini Proxy"     8103  "Google API"
 check_service "DeepSeek Proxy"   8105  "DeepSeek API"
 check_service "Claude Code"      8104  "Claude Code CLI as API"
 check_tcp_service "Redis"        6379  "Message bus"
+check_service "CrewAI Agents"   8120  "Autonomous business agents"
 echo ""
 
-echo -e "${BOLD} AI Stack (Core Services)${NC}"
+echo -e "${BOLD} AI Stack${NC}"
 echo -e " ${YELLOW}─────────────────────────────────────────${NC}"
 check_service "Open WebUI"       3000  "Chat interface"
 check_service "Ollama"          11434  "Local LLM inference"
@@ -66,7 +68,7 @@ check_service "Stable Diffusion" 7861  "Image generation"
 check_service "ComfyUI"          8188  "Node-based image gen"
 echo ""
 
-echo -e "${BOLD} Automation & Tools${NC}"
+echo -e "${BOLD} Tools${NC}"
 echo -e " ${YELLOW}─────────────────────────────────────────${NC}"
 check_service "n8n"              5678  "Workflow automation"
 check_service "Dockge"           5001  "Docker compose manager"
@@ -75,10 +77,24 @@ check_service "Vaultwarden"      8222  "Password manager"
 check_tcp_service "PostgreSQL"   5432  "Database"
 echo ""
 
-echo -e "${BOLD} Quick Access:${NC}"
-echo -e "  Router API:  ${CYAN}http://$IP:8110/v1/chat/completions${NC}"
-echo -e "  All Models:  ${CYAN}http://$IP:8110/v1/models${NC}"
-echo -e "  Health:      ${CYAN}http://$IP:8110/health${NC}"
-echo -e "  Open WebUI:  ${CYAN}http://$IP:3000${NC}"
-echo -e "  n8n:         ${CYAN}http://$IP:5678${NC}"
+echo -e "${BOLD} Shortcuts:${NC}  ${DIM}type any command below${NC}"
+echo -e "  ${CYAN}ai${NC} \"prompt\"           Chat via router (auto-routes)"
+echo -e "  ${CYAN}ai-claude${NC} \"prompt\"    Chat with Claude"
+echo -e "  ${CYAN}ai-grok${NC} \"prompt\"      Chat with Grok"
+echo -e "  ${CYAN}ai-gpt${NC} \"prompt\"       Chat with ChatGPT"
+echo -e "  ${CYAN}ai-gemini${NC} \"prompt\"    Chat with Gemini"
+echo -e "  ${CYAN}ai-deepseek${NC} \"prompt\"  Chat with DeepSeek"
+echo -e "  ${CYAN}ai-multi${NC} \"prompt\"     Ask all AIs at once"
+echo -e "  ${CYAN}ai-health${NC}             Show backend health"
+echo -e "  ${CYAN}ai-models${NC}             List all available models"
+echo -e "  ${CYAN}ai-logs${NC} <service>     Tail logs (e.g. ${DIM}ai-logs router${NC})"
+echo -e "  ${CYAN}ai-restart${NC} <service>  Restart (e.g. ${DIM}ai-restart claude-proxy${NC})"
+echo -e "  ${CYAN}ai-up${NC}                 Start all AI mesh services"
+echo -e "  ${CYAN}ai-down${NC}               Stop all AI mesh services"
+echo ""
+echo -e "${BOLD} Agents:${NC}  ${DIM}autonomous business agents${NC}"
+echo -e "  ${CYAN}ai-strategy${NC}           Run strategy session (find opportunities)"
+echo -e "  ${CYAN}ai-build${NC} \"desc\"       Build a business from description"
+echo -e "  ${CYAN}ai-jobs${NC}               List running agent jobs"
+echo -e "  ${CYAN}ai-job${NC} <id>           Check job status/result"
 echo ""

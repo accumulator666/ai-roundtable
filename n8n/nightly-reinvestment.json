@@ -1,0 +1,50 @@
+{
+  "name": "Nightly Revenue Reinvestment",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 0
+            }
+          ]
+        }
+      },
+      "id": "midnight-trigger",
+      "name": "Midnight",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://prompt-template-db:5432",
+        "options": {}
+      },
+      "id": "placeholder-calc",
+      "name": "Calculate Reinvestment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Midnight": {
+      "main": [
+        [
+          {
+            "node": "Calculate Reinvestment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,47 @@
+strategy_session:
+  description: >
+    Review current businesses, their performance, and the remaining budget.
+    If no businesses exist yet, research and propose 3 new business ideas.
+    For each idea, estimate: startup cost, time to first revenue, monthly revenue potential, automation level.
+    Pick the best one and create a detailed execution plan.
+    Save your decision and plan to shared memory.
+  expected_output: "A business plan with clear next steps for the team."
+  agent: strategist
+
+market_research:
+  description: >
+    Research the business opportunity: {topic}.
+    Analyze: market size, existing competitors (with URLs and pricing), target customer profile,
+    potential revenue models, and key risks.
+    Be specific with numbers and data points.
+  expected_output: "A detailed market research report with data, competitors, and recommendation."
+  agent: researcher
+
+build_mvp:
+  description: >
+    Build an MVP for: {business_description}.
+    Requirements: Landing page with clear value prop, Stripe payment integration,
+    email capture, mobile responsive, fast loading.
+    Deploy to Cloudflare Pages and return the live URL.
+  expected_output: "A deployed MVP with live URL and Stripe payment link."
+  agent: builder
+
+create_marketing:
+  description: >
+    Create marketing materials for: {business_description}.
+    Produce: 1 landing page copy, 3 blog post outlines, 5 social media posts,
+    and a 3-email welcome sequence.
+    Target audience: {target_audience}.
+    Tone: {tone}.
+  expected_output: "Complete marketing package ready to publish."
+  agent: marketer
+
+financial_setup:
+  description: >
+    Set up financials for: {business_description}.
+    Create Stripe product with appropriate pricing.
+    Record the startup costs in the budget ledger.
+    Calculate break-even point.
+    Report current budget status.
+  expected_output: "Stripe product created, costs recorded, break-even analysis complete."
+  agent: finance
