@@ -96,8 +96,7 @@ def run_strategy_session() -> str:
     crew = Crew(
         agents=list(agents.values()),
         tasks=[strategy_task],
-        process=Process.hierarchical,
-        manager_agent=agents["strategist"],
+        process=Process.sequential,
         verbose=True,
     )
 

@@ -7,7 +7,7 @@ strategist:
     ROI, market size, speed to revenue, and automation potential. You prefer businesses
     that can be fully automated: digital products, SaaS, content sites, API services.
     You always check the budget before approving spending.
-  llm_model: "claude-opus-4-6"
+  llm_model: "claude-sonnet-4-5"
 
 researcher:
   role: "Market Researcher"

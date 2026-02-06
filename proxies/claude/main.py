@@ -39,9 +39,27 @@ def to_anthropic_messages(messages: list[ChatMessage]) -> tuple[str, list[dict]]
     converted = []
     for msg in messages:
         if msg.role == "system":
-            system = msg.content
+            system += ("\n" + msg.content if system else msg.content)
         else:
-            converted.append({"role": msg.role, "content": msg.content})
+            role = msg.role if msg.role in ("user", "assistant") else "user"
+            # Merge consecutive same-role messages (Anthropic API requires alternating roles)
+            if converted and converted[-1]["role"] == role:
+                converted[-1]["content"] += "\n" + msg.content
+            else:
+                converted.append({"role": role, "content": msg.content})
+
+    # Strip trailing assistant messages (prefills not supported by all models)
+    while converted and converted[-1]["role"] == "assistant":
+        converted.pop()
+
+    # Ensure conversation starts with user message
+    if converted and converted[0]["role"] != "user":
+        converted.insert(0, {"role": "user", "content": "Continue."})
+
+    # Ensure at least one message
+    if not converted:
+        converted = [{"role": "user", "content": "Hello."}]
+
     return system, converted
 
 

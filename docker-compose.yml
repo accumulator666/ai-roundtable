@@ -221,6 +221,32 @@ services:
       - ai-mesh
       - ai-stack
 
+  # --- Collaborative Chat ---
+
+  collab-chat:
+    image: python:3.12-slim
+    container_name: ai-mesh-collab-chat
+    restart: unless-stopped
+    ports:
+      - "8130:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+    volumes:
+      - ./collab-chat:/app
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # --- Business Agents ---
 
   crewai-agents:
