@@ -21,17 +21,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    z-index: 10;
   }
-  header h1 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #58a6ff;
-  }
-  header .controls {
-    display: flex;
-    gap: 8px;
-  }
-  header button {
+  header h1 { font-size: 18px; font-weight: 600; color: #58a6ff; }
+  header .controls { display: flex; gap: 8px; }
+  .btn {
     background: #21262d;
     color: #c9d1d9;
     border: 1px solid #30363d;
@@ -40,36 +34,96 @@
     cursor: pointer;
     font-size: 13px;
   }
-  header button:hover { background: #30363d; }
-  .participants {
+  .btn:hover { background: #30363d; }
+  .main-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  /* Sidebar */
+  #sidebar {
+    width: 260px;
     background: #161b22;
-    border-bottom: 1px solid #30363d;
-    padding: 8px 20px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
+    border-right: 1px solid #30363d;
+    overflow-y: auto;
+    padding: 12px;
+    flex-shrink: 0;
+    transition: margin-left 0.2s;
   }
-  .participant {
+  #sidebar.hidden { margin-left: -260px; }
+  .sidebar-section {
+    margin-bottom: 16px;
+  }
+  .sidebar-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+  .participant-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    padding: 4px 10px;
-    border-radius: 16px;
-    background: #21262d;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.15s;
+    user-select: none;
   }
-  .participant .dot {
-    width: 8px;
-    height: 8px;
+  .participant-toggle:hover { background: #21262d; }
+  .participant-toggle.active { background: #1c2333; }
+  .participant-toggle .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.3;
+    transition: opacity 0.15s;
+  }
+  .participant-toggle.active .dot { opacity: 1; }
+  .participant-toggle .info { flex: 1; min-width: 0; }
+  .participant-toggle .pname {
+    font-size: 13px; font-weight: 500;
+    color: #c9d1d9;
+  }
+  .participant-toggle .ptype {
+    font-size: 10px;
+    color: #8b949e;
+    text-transform: uppercase;
+  }
+  .participant-toggle .thinking-anim {
+    display: none;
+    width: 16px; height: 16px;
+  }
+  .participant-toggle.thinking .thinking-anim {
+    display: block;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toggle-switch {
+    width: 32px; height: 18px;
+    background: #30363d; border-radius: 9px;
+    position: relative; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .participant-toggle.active .toggle-switch { background: #238636; }
+  .toggle-switch::after {
+    content: '';
+    width: 14px; height: 14px;
+    background: #e6edf3;
     border-radius: 50%;
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: transform 0.15s;
   }
-  .participant.thinking .dot {
-    animation: pulse 1s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+  .participant-toggle.active .toggle-switch::after { transform: translateX(14px); }
+  /* Chat area */
+  #chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
   #chat {
     flex: 1;
@@ -85,7 +139,6 @@
     border-radius: 12px;
     line-height: 1.5;
     font-size: 14px;
-    position: relative;
     animation: fadeIn 0.3s ease;
   }
   @keyframes fadeIn {
@@ -105,55 +158,44 @@
     border-bottom-left-radius: 4px;
   }
   .message .sender {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 12px; font-weight: 600;
     margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: flex; align-items: center; gap: 6px;
   }
   .message .sender .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%; display: inline-block;
   }
+  .badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-agent { background: #238636; color: #fff; }
+  .badge-model { background: #30363d; color: #8b949e; }
   .message .content {
     white-space: pre-wrap;
     word-wrap: break-word;
   }
-  .message .content p { margin-bottom: 8px; }
-  .message .content p:last-child { margin-bottom: 0; }
   .message .content code {
-    background: #0d1117;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
+    background: #0d1117; padding: 2px 6px;
+    border-radius: 4px; font-size: 13px;
   }
   .message .content pre {
-    background: #0d1117;
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 8px 0;
+    background: #0d1117; padding: 12px;
+    border-radius: 8px; overflow-x: auto; margin: 8px 0;
   }
   .thinking-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    font-size: 13px;
-    color: #8b949e;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; font-size: 13px; color: #8b949e;
     animation: fadeIn 0.3s ease;
   }
-  .thinking-dots {
-    display: flex;
-    gap: 4px;
-  }
+  .thinking-dots { display: flex; gap: 4px; }
   .thinking-dots span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
     animation: bounce 1.4s ease-in-out infinite;
   }
   .thinking-dots span:nth-child(1) { animation-delay: 0s; }
@@ -167,8 +209,7 @@
     background: #161b22;
     border-top: 1px solid #30363d;
     padding: 16px 20px;
-    display: flex;
-    gap: 10px;
+    display: flex; gap: 10px;
   }
   #input-area textarea {
     flex: 1;
@@ -180,72 +221,101 @@
     font-size: 14px;
     font-family: inherit;
     resize: none;
-    min-height: 48px;
-    max-height: 120px;
+    min-height: 48px; max-height: 120px;
     line-height: 1.4;
   }
-  #input-area textarea:focus {
-    outline: none;
-    border-color: #58a6ff;
-  }
-  #input-area button {
-    background: #238636;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
+  #input-area textarea:focus { outline: none; border-color: #58a6ff; }
+  .btn-send {
+    background: #238636; color: white; border: none;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
     white-space: nowrap;
   }
-  #input-area button:hover { background: #2ea043; }
-  #input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
-  #input-area .btn-secondary {
-    background: #21262d;
-    border: 1px solid #30363d;
-    color: #c9d1d9;
+  .btn-send:hover { background: #2ea043; }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-discuss {
+    background: #21262d; border: 1px solid #30363d;
+    color: #c9d1d9; padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; cursor: pointer; white-space: nowrap;
   }
-  #input-area .btn-secondary:hover { background: #30363d; }
+  .btn-discuss:hover { background: #30363d; }
+  .active-count {
+    background: #238636; color: white;
+    font-size: 11px; padding: 2px 7px;
+    border-radius: 10px; font-weight: 600;
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>AI Roundtable</h1>
   <div class="controls">
-    <button onclick="clearChat()">Clear Chat</button>
+    <button class="btn" onclick="toggleSidebar()">Participants</button>
+    <button class="btn" onclick="clearChat()">Clear</button>
   </div>
 </header>
-<div class="participants" id="participants"></div>
-<div id="chat"></div>
-<div id="input-area">
-  <textarea id="input" placeholder="Ask something... all AIs will respond and discuss" rows="1"
-    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
-  <button onclick="requestCrosstalk()" class="btn-secondary" id="btn-discuss" title="Let AIs discuss each other's responses">Discuss</button>
-  <button onclick="send()" id="btn-send">Send</button>
+<div class="main-area">
+  <div id="sidebar"></div>
+  <div id="chat-area">
+    <div id="chat"></div>
+    <div id="input-area">
+      <textarea id="input" placeholder="Ask something... all active AIs will respond" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+      <button onclick="requestCrosstalk()" class="btn-discuss" title="Let AIs discuss each other's responses">Discuss</button>
+      <button onclick="send()" class="btn-send" id="btn-send">Send</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const models = [
-  {id: "claude-sonnet-4-5", name: "Claude", color: "#cc785c"},
-  {id: "grok-3-mini", name: "Grok", color: "#1da1f2"},
-  {id: "deepseek-chat", name: "DeepSeek", color: "#4a90d9"},
-];
-
 const chat = document.getElementById('chat');
 const input = document.getElementById('input');
-const participants = document.getElementById('participants');
+const sidebar = document.getElementById('sidebar');
 const btnSend = document.getElementById('btn-send');
-const btnDiscuss = document.getElementById('btn-discuss');
 let ws;
 let thinkingEls = {};
+let participants = [];
 
-function renderParticipants() {
-  participants.innerHTML = '<span style="font-size:12px;color:#8b949e;margin-right:4px">Participants:</span>';
-  participants.innerHTML += '<div class="participant"><span class="dot" style="background:#238636"></span>You</div>';
-  models.forEach(m => {
-    participants.innerHTML += `<div class="participant" id="p-${m.name}"><span class="dot" style="background:${m.color}"></span>${m.name}</div>`;
+function toggleSidebar() {
+  sidebar.classList.toggle('hidden');
+}
+
+function renderSidebar() {
+  const models = participants.filter(p => p.type === 'model');
+  const agents = participants.filter(p => p.type === 'agent');
+  const activeCount = participants.filter(p => p.enabled).length;
+
+  let html = '';
+
+  html += `<div class="sidebar-section">
+    <h3>AI Models <span class="active-count">${models.filter(m=>m.enabled).length}</span></h3>`;
+  models.forEach(p => {
+    html += `<div class="participant-toggle ${p.enabled ? 'active' : ''}" onclick="toggleParticipant('${p.name}')">
+      <span class="dot" style="background:${p.color}"></span>
+      <div class="info">
+        <div class="pname">${p.name}</div>
+        <div class="ptype">${p.id}</div>
+      </div>
+      <div class="toggle-switch"></div>
+    </div>`;
   });
+  html += '</div>';
+
+  html += `<div class="sidebar-section">
+    <h3>Agents <span class="active-count">${agents.filter(a=>a.enabled).length}</span></h3>`;
+  agents.forEach(p => {
+    html += `<div class="participant-toggle ${p.enabled ? 'active' : ''}" onclick="toggleParticipant('${p.name}')">
+      <span class="dot" style="background:${p.color}"></span>
+      <div class="info">
+        <div class="pname">${p.name}</div>
+        <div class="ptype">${p.id}</div>
+      </div>
+      <div class="toggle-switch"></div>
+    </div>`;
+  });
+  html += '</div>';
+
+  sidebar.innerHTML = html;
 }
 
 function connect() {
@@ -257,7 +327,10 @@ function connect() {
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
-    if (data.type === 'message') {
+    if (data.type === 'participants') {
+      participants = data.data;
+      renderSidebar();
+    } else if (data.type === 'message') {
       removeThinking(data.name);
       addMessage(data);
       btnSend.disabled = false;
@@ -274,15 +347,24 @@ function connect() {
   };
 }
 
+function toggleParticipant(name) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type: 'toggle', name: name}));
+  }
+}
+
 function addMessage(data) {
   const div = document.createElement('div');
   div.className = `message ${data.role}`;
 
   if (data.role === 'assistant') {
+    const badgeClass = data.badge === 'agent' ? 'badge-agent' : 'badge-model';
+    const badgeText = data.badge === 'agent' ? 'Agent' : 'Model';
     div.innerHTML = `
       <div class="sender">
         <span class="dot" style="background:${data.color}"></span>
         ${data.name}
+        <span class="badge ${badgeClass}">${badgeText}</span>
       </div>
       <div class="content">${formatContent(data.content)}</div>
     `;
@@ -298,7 +380,6 @@ function showThinking(name, color) {
   if (thinkingEls[name]) return;
   const div = document.createElement('div');
   div.className = 'thinking-indicator';
-  div.id = `thinking-${name}`;
   div.innerHTML = `
     <span class="dot" style="background:${color};width:8px;height:8px;border-radius:50%;display:inline-block"></span>
     ${name} is thinking
@@ -311,9 +392,6 @@ function showThinking(name, color) {
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   thinkingEls[name] = div;
-
-  const p = document.getElementById(`p-${name}`);
-  if (p) p.classList.add('thinking');
 }
 
 function removeThinking(name) {
@@ -321,8 +399,6 @@ function removeThinking(name) {
     thinkingEls[name].remove();
     delete thinkingEls[name];
   }
-  const p = document.getElementById(`p-${name}`);
-  if (p) p.classList.remove('thinking');
 }
 
 function send() {
@@ -350,26 +426,19 @@ function escapeHtml(text) {
 }
 
 function formatContent(text) {
-  // Basic markdown-ish formatting
   let html = escapeHtml(text);
-  // Code blocks
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-  // Inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Line breaks
   html = html.replace(/\n/g, '<br>');
   return html;
 }
 
-// Auto-resize textarea
 input.addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
-renderParticipants();
 connect();
 </script>
 </body>
