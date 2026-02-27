@@ -16,17 +16,17 @@ _ai_chat() {
 }
 
 # Chat with auto-routing
-ai() { _ai_chat "auto" "$@"; }
+function ai { _ai_chat "auto" "$@"; }
 
 # Chat with specific providers
-ai-claude()   { _ai_chat "claude-sonnet-4-5" "$@"; }
-ai-grok()     { _ai_chat "grok-3-mini" "$@"; }
-ai-gpt()      { _ai_chat "gpt-4o-mini" "$@"; }
-ai-gemini()   { _ai_chat "gemini-2.0-flash" "$@"; }
-ai-deepseek() { _ai_chat "deepseek-chat" "$@"; }
+function ai-claude   { _ai_chat "claude-sonnet-4-5" "$@"; }
+function ai-grok     { _ai_chat "grok-3-mini" "$@"; }
+function ai-gpt      { _ai_chat "gpt-4o-mini" "$@"; }
+function ai-gemini   { _ai_chat "gemini-2.0-flash" "$@"; }
+function ai-deepseek { _ai_chat "deepseek-chat" "$@"; }
 
 # Ask all AIs the same prompt
-ai-multi() {
+function ai-multi {
     local prompt="$*"
     if [ -z "$prompt" ]; then
         echo "Usage: ai-multi \"your prompt here\""
@@ -42,15 +42,15 @@ ai-multi() {
 }
 
 # Health & management
-ai-health()  { curl -s http://localhost:8110/health | jq; }
-ai-models()  { curl -s http://localhost:8110/v1/models | jq -r '.data[].id' | sort; }
-ai-logs()    { docker logs "ai-mesh-${1:-router}" -f --tail 50; }
-ai-restart() { docker restart "ai-mesh-${1:-router}"; }
-ai-up()      { cd /data/ai-mesh && docker compose up -d; }
-ai-down()    { cd /data/ai-mesh && docker compose down; }
+function ai-health   { curl -s http://localhost:8110/health | jq; }
+function ai-models   { curl -s http://localhost:8110/v1/models | jq -r '.data[].id' | sort; }
+function ai-logs     { docker logs "ai-mesh-${1:-router}" -f --tail 50; }
+function ai-restart  { docker restart "ai-mesh-${1:-router}"; }
+function ai-up       { cd /data/ai-mesh && docker compose up -d; }
+function ai-down     { cd /data/ai-mesh && docker compose down; }
 
 # Agent commands
-ai-strategy()  { curl -s -X POST http://localhost:8120/v1/agents/strategy-session | jq; }
-ai-build()     { curl -s -X POST http://localhost:8120/v1/agents/build-business -H "Content-Type: application/json" -d "$(jq -n --arg d "$*" '{business_description: $d}')" | jq; }
-ai-jobs()      { curl -s http://localhost:8120/v1/agents/jobs | jq; }
-ai-job()       { curl -s http://localhost:8120/v1/agents/jobs/$1 | jq; }
+function ai-strategy { curl -s -X POST http://localhost:8120/v1/agents/strategy-session | jq; }
+function ai-build    { curl -s -X POST http://localhost:8120/v1/agents/build-business -H "Content-Type: application/json" -d "$(jq -n --arg d "$*" '{business_description: $d}')" | jq; }
+function ai-jobs     { curl -s http://localhost:8120/v1/agents/jobs | jq; }
+function ai-job      { curl -s http://localhost:8120/v1/agents/jobs/$1 | jq; }

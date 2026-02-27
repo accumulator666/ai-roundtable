@@ -24,7 +24,7 @@
     z-index: 10;
   }
   header h1 { font-size: 18px; font-weight: 600; color: #58a6ff; }
-  header .controls { display: flex; gap: 8px; }
+  header .controls { display: flex; gap: 8px; align-items: center; }
   .btn {
     background: #21262d;
     color: #c9d1d9;
@@ -41,8 +41,14 @@
     overflow: hidden;
   }
   /* Sidebar */
-  #sidebar {
+  /* REMOVED 2026-02-25 — #sidebar { */
+  /* REMOVED 2026-02-25 —   width: 260px; */
+
+  #sidebar {  /* ADDED 2026-02-25 */
     width: 260px;
+    @media (max-width: 768px) {
+      width: 200px;  /* ADDED 2026-02-25 */
+    }
     background: #161b22;
     border-right: 1px solid #30363d;
     overflow-y: auto;
@@ -51,9 +57,7 @@
     transition: margin-left 0.2s;
   }
   #sidebar.hidden { margin-left: -260px; }
-  .sidebar-section {
-    margin-bottom: 16px;
-  }
+  .sidebar-section { margin-bottom: 16px; }
   .sidebar-section h3 {
     font-size: 11px;
     text-transform: uppercase;
@@ -62,6 +66,11 @@
     margin-bottom: 8px;
     padding: 0 4px;
   }
+  .stats-body { display: flex; flex-direction: column; gap: 6px; padding: 4px; }
+  .stat-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #c9d1d9; }
+  .stat-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-meta { color: #8b949e; font-variant-numeric: tabular-nums; }
+  .stat-badge { padding: 1px 6px; border-radius: 999px; background: #21262d; border: 1px solid #30363d; }
   .participant-toggle {
     display: flex;
     align-items: center;
@@ -83,24 +92,8 @@
   }
   .participant-toggle.active .dot { opacity: 1; }
   .participant-toggle .info { flex: 1; min-width: 0; }
-  .participant-toggle .pname {
-    font-size: 13px; font-weight: 500;
-    color: #c9d1d9;
-  }
-  .participant-toggle .ptype {
-    font-size: 10px;
-    color: #8b949e;
-    text-transform: uppercase;
-  }
-  .participant-toggle .thinking-anim {
-    display: none;
-    width: 16px; height: 16px;
-  }
-  .participant-toggle.thinking .thinking-anim {
-    display: block;
-    animation: spin 1s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .participant-toggle .pname { font-size: 13px; font-weight: 500; color: #c9d1d9; }
+  .participant-toggle .ptype { font-size: 10px; color: #8b949e; text-transform: uppercase; }
   .toggle-switch {
     width: 32px; height: 18px;
     background: #30363d; border-radius: 9px;
@@ -131,7 +124,7 @@
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
   .message {
     max-width: 85%;
@@ -157,6 +150,21 @@
     border: 1px solid #30363d;
     border-bottom-left-radius: 4px;
   }
+  .message.discussion {
+    border-left: 3px solid #8b5cf6;
+    margin-left: 16px;
+    max-width: 80%;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .message.final-answer {
+    max-width: 95%;
+    background: #0c1a0e;
+    border: 2px solid #238636;
+    border-left: 5px solid #fbbf24;
+    font-size: 15px;
+    padding: 16px 20px;
+  }
   .message .sender {
     font-size: 12px; font-weight: 600;
     margin-bottom: 6px;
@@ -176,6 +184,7 @@
   }
   .badge-agent { background: #238636; color: #fff; }
   .badge-model { background: #30363d; color: #8b949e; }
+  .badge-synthesis { background: #fbbf24; color: #000; }
   .message .content {
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -187,6 +196,10 @@
   .message .content pre {
     background: #0d1117; padding: 12px;
     border-radius: 8px; overflow-x: auto; margin: 8px 0;
+  }
+  .message .refs {
+    font-size: 11px; color: #8b949e;
+    margin-top: 4px; font-style: italic;
   }
   .thinking-indicator {
     display: flex; align-items: center; gap: 8px;
@@ -205,11 +218,50 @@
     0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
     40% { transform: translateY(-8px); opacity: 1; }
   }
+  /* Round separator */
+  .round-separator {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 0; margin: 2px 0;
+    color: #8b949e; font-size: 12px;
+    animation: fadeIn 0.3s ease;
+  }
+  .round-separator .line { flex: 1; height: 1px; background: #30363d; }
+  .round-separator .label {
+    background: #21262d; padding: 4px 12px;
+    border-radius: 12px; white-space: nowrap;
+    border: 1px solid #30363d; font-weight: 500;
+  }
+  .round-separator.final .label {
+    background: #1a1a00; border-color: #fbbf24; color: #fbbf24;
+  }
+  /* Deliberation banner */
+  .deliberation-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    border-radius: 8px; font-size: 13px;
+    animation: fadeIn 0.3s ease;
+  }
+  .deliberation-banner.start {
+    background: #0c1a2e; border: 1px solid #1f6feb; color: #58a6ff;
+  }
+  .deliberation-banner.end {
+    background: #0c1a0e; border: 1px solid #238636; color: #3fb950;
+  }
+  .directed-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    background: #1c1c3a; border: 1px solid #5b21b6;
+    border-radius: 8px; font-size: 13px;
+    color: #a78bfa; animation: fadeIn 0.3s ease;
+  }
+  /* Input area */
   #input-area {
     background: #161b22;
     border-top: 1px solid #30363d;
     padding: 16px 20px;
     display: flex; gap: 10px;
+    position: relative;
+    align-items: flex-end;
   }
   #input-area textarea {
     flex: 1;
@@ -244,26 +296,512 @@
     font-size: 11px; padding: 2px 7px;
     border-radius: 10px; font-weight: 600;
   }
+  /* Max rounds control */
+  .rounds-control {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #8b949e;
+  }
+  .rounds-control select {
+    background: #21262d; color: #c9d1d9;
+    border: 1px solid #30363d; border-radius: 4px;
+    padding: 2px 4px; font-size: 12px;
+  }
+  /* @mention popup */
+  #mention-popup {
+    display: none; position: absolute; bottom: 100%;
+    left: 0; right: 0; max-height: 200px;
+    overflow-y: auto; background: #161b22;
+    border: 1px solid #30363d; border-radius: 8px;
+    margin-bottom: 4px; z-index: 20;
+  }
+  #mention-popup .mention-item {
+    padding: 8px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px;
+  }
+  #mention-popup .mention-item:hover,
+  #mention-popup .mention-item.selected { background: #21262d; }
+  #mention-popup .mention-item .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  /* Stop/Pause/Resume buttons */
+  .btn-stop {
+    background: #da3633; color: white; border: none;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-stop:hover:not(:disabled) { background: #f85149; }
+  .btn-stop:disabled { background: #3d1a1a; color: #6e3630; cursor: not-allowed; }
+  .btn-pause {
+    background: #9e6a03; color: white; border: none;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-pause:hover:not(:disabled) { background: #bb8009; }
+  .btn-pause:disabled { background: #2a1f00; color: #6e5a1a; cursor: not-allowed; }
+  .btn-pause.resumed { background: #238636; }
+  .btn-pause.resumed:hover { background: #2ea043; }
+  /* Error messages */
+  .message.error-msg {
+    border: 1px solid #da3633;
+    border-left: 4px solid #da3633;
+    background: #1a0d0d;
+  }
+  .message.error-msg .content { color: #f85149; }
+  /* Paused banner */
+  .paused-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    background: #2a1a00; border: 1px solid #9e6a03;
+    border-radius: 8px; font-size: 13px;
+    color: #e3b341; animation: fadeIn 0.3s ease;
+  }
+  /* Stopped banner */
+  .stopped-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    background: #1a0d0d; border: 1px solid #da3633;
+    border-radius: 8px; font-size: 13px;
+    color: #f85149; animation: fadeIn 0.3s ease;
+  }
+  /* Apply edit button on messages */
+  .btn-apply {
+    background: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    margin-top: 6px;
+    transition: all 0.15s;
+  }
+  .btn-apply:hover { background: #30363d; color: #58a6ff; border-color: #58a6ff; }
+  /* Edit proposal banner */
+  .edit-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    border-radius: 8px; font-size: 13px;
+    animation: fadeIn 0.3s ease;
+  }
+  .edit-banner.proposed {
+    background: #1c1a2e; border: 1px solid #7c3aed; color: #a78bfa;
+  }
+  .edit-banner.running {
+    background: #1a1a00; border: 1px solid #9e6a03; color: #e3b341;
+  }
+  .edit-banner.applied {
+    background: #0c1a0e; border: 1px solid #238636; color: #3fb950;
+  }
+  .edit-banner.failed {
+    background: #1a0d0d; border: 1px solid #da3633; color: #f85149;
+  }
+  .edit-banner .edit-actions { margin-left: auto; display: flex; gap: 6px; }
+  .edit-banner .btn-approve {
+    background: #238636; color: white; border: none;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .edit-banner .btn-approve:hover { background: #2ea043; }
+  .edit-banner .btn-reject {
+    background: #da3633; color: white; border: none;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .edit-banner .btn-reject:hover { background: #f85149; }
+  .edit-banner select {
+    background: #21262d; color: #c9d1d9;
+    border: 1px solid #30363d; border-radius: 4px;
+    padding: 3px 6px; font-size: 12px;
+  }
+  .edit-banner input.edit-reason {
+    background: #0d1117; color: #e6edf3;
+    border: 1px solid #30363d; border-radius: 4px;
+    padding: 3px 8px; font-size: 12px; flex: 1;
+    min-width: 120px;
+  }
+  .edit-banner input.edit-reason::placeholder { color: #484f58; }
+  /* Preset bar */
+  #preset-bar {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 8px 20px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #preset-bar .preset-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .preset-btn {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 4px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { background: #30363d; border-color: #58a6ff; color: #58a6ff; }
+  .preset-btn .preset-desc {
+    color: #8b949e;
+    font-size: 10px;
+    margin-left: 4px;
+  }
+  /* Developer Bar */
+  #dev-bar {
+    background: #0d1117;
+    border-top: 2px solid #f0883e;
+    display: flex;
+    flex-direction: column;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  #dev-bar.open { max-height: 50vh; }
+  #dev-bar-toggle {
+    background: #21262d;
+    color: #f0883e;
+    border: 1px solid #f0883e;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  #dev-bar-toggle:hover { background: #30363d; }
+  #dev-bar-toggle.active { background: #f0883e; color: #0d1117; }
+  #dev-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    flex-shrink: 0;
+  }
+  #dev-bar-header .dev-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f0883e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #dev-bar-header select {
+    background: #21262d;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  #dev-bar-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100px;
+  }
+  .dev-msg {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 90%;
+  }
+  .dev-msg.user {
+    align-self: flex-end;
+    background: #1f4a2d;
+    color: #7ee787;
+    border-bottom-right-radius: 2px;
+  }
+  .dev-msg.assistant {
+    align-self: flex-start;
+    background: #1c1a2e;
+    border: 1px solid #7c3aed;
+    border-bottom-left-radius: 2px;
+  }
+  .dev-msg .dev-sender {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f0883e;
+    margin-bottom: 4px;
+  }
+  .dev-msg .dev-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .dev-msg .dev-content code {
+    background: #0d1117;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .dev-msg .dev-content pre {
+    background: #0d1117;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 6px 0;
+    font-size: 12px;
+  }
+  .dev-msg .dev-actions {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+  }
+  .dev-msg .btn-dev-apply {
+    background: #238636;
+    color: white;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .dev-msg .btn-dev-apply:hover { background: #2ea043; }
+  #dev-bar-input {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    flex-shrink: 0;
+    align-items: flex-end;
+  }
+  #dev-bar-input textarea {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: none;
+    min-height: 36px;
+    max-height: 100px;
+    line-height: 1.4;
+  }
+  #dev-bar-input textarea:focus { outline: none; border-color: #f0883e; }
+  .btn-dev-send {
+    background: #f0883e;
+    color: #0d1117;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-dev-send:hover { background: #f59e0b; }
+  .btn-dev-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-dev-clear {
+    background: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-dev-clear:hover { background: #30363d; }
+  .dev-thinking {
+    font-size: 12px;
+    color: #f0883e;
+    padding: 6px 12px;
+    animation: fadeIn 0.3s ease;
+  }
+  .dev-edit-status {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin: 4px 0;
+  }
+  .dev-edit-status.running { background: #1a1a00; border: 1px solid #9e6a03; color: #e3b341; }
+  .dev-edit-status.applied { background: #0c1a0e; border: 1px solid #238636; color: #3fb950; }
+  .dev-edit-status.failed { background: #1a0d0d; border: 1px solid #da3633; color: #f85149; }
+  /* Add Persona */
+  .persona-section {
+    border-top: 1px solid #30363d;
+    padding-top: 12px;
+    margin-top: 8px;
+  }
+  .persona-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #f0883e;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+  .persona-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 4px;
+  }
+  .persona-form input {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+  }
+  .persona-form input:focus { outline: none; border-color: #f0883e; }
+  .persona-form input::placeholder { color: #484f58; }
+  .persona-form select {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    width: 100%;
+  }
+  .persona-form .model-hint {
+    font-size: 10px;
+    color: #f0883e;
+    padding: 2px 4px;
+    min-height: 14px;
+  }
+  .btn-research {
+    background: #f0883e;
+    color: #0d1117;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+  }
+  .btn-research:hover { background: #f59e0b; }
+  .btn-research:disabled { opacity: 0.5; cursor: not-allowed; }
+  .persona-status {
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .persona-status.researching {
+    background: #1a1a00;
+    border: 1px solid #9e6a03;
+    color: #e3b341;
+  }
+  .persona-status.success {
+    background: #0c1a0e;
+    border: 1px solid #238636;
+    color: #3fb950;
+  }
+  .persona-status.error {
+    background: #1a0d0d;
+    border: 1px solid #da3633;
+    color: #f85149;
+  }
+  /* Researched persona badge */
+  .badge-persona { background: #f0883e; color: #0d1117; }
+  .participant-toggle .btn-remove {
+    width: 18px; height: 18px;
+    background: none; border: none;
+    color: #da3633; cursor: pointer;
+    font-size: 14px; line-height: 18px;
+    padding: 0; flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .participant-toggle:hover .btn-remove { opacity: 1; }
+  .participant-toggle .btn-remove:hover { color: #f85149; }
+  /* Persona added banner in chat */
+  .persona-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    border-radius: 8px; font-size: 13px;
+    animation: fadeIn 0.3s ease;
+  }
+  .persona-banner.researching {
+    background: #1a1a00; border: 1px solid #9e6a03; color: #e3b341;
+  }
+  .persona-banner.added {
+    background: #1c1017; border: 1px solid #f0883e; color: #f0883e;
+  }
+  .persona-banner.error {
+    background: #1a0d0d; border: 1px solid #da3633; color: #f85149;
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>AI Roundtable</h1>
   <div class="controls">
+    <div class="rounds-control">
+      <label>Max rounds:</label>
+      <select id="max-rounds" onchange="setMaxRounds(this.value)">
+        <option value="0" selected>Unlimited</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+      </select>
+    </div>
     <button class="btn" onclick="toggleSidebar()">Participants</button>
+    <button class="btn" onclick="downloadMinutes()">Minutes</button>
     <button class="btn" onclick="clearChat()">Clear</button>
+    <button id="dev-bar-toggle" onclick="toggleDevBar()">Dev Bar</button>
   </div>
 </header>
+<div id="preset-bar">
+  <span class="preset-label">Teams:</span>
+</div>
 <div class="main-area">
   <div id="sidebar"></div>
   <div id="chat-area">
     <div id="chat"></div>
     <div id="input-area">
-      <textarea id="input" placeholder="Ask something... all active AIs will respond" rows="1"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
-      <button onclick="requestCrosstalk()" class="btn-discuss" title="Let AIs discuss each other's responses">Discuss</button>
+      <div id="mention-popup"></div>
+      <textarea id="input" placeholder="Give an instruction... AIs will deliberate and give you one answer. Use @Name @Name for targeted discussion." rows="1"
+        onkeydown="handleInputKeydown(event)" oninput="handleMentionInput()"></textarea>
+      <button onclick="requestCrosstalk()" class="btn-discuss" id="btn-debate" title="Trigger another round of debate">More debate</button>
+      <button onclick="requestStop()" class="btn-stop" id="btn-stop" title="Stop deliberation">Stop</button>
+      <button onclick="requestPauseResume()" class="btn-pause" id="btn-pause" title="Pause deliberation">Pause</button>
       <button onclick="send()" class="btn-send" id="btn-send">Send</button>
     </div>
+  </div>
+</div>
+
+<div id="dev-bar">
+  <div id="dev-bar-header">
+    <span class="dev-label">Developer Bar</span>
+    <select id="dev-model">
+      <option value="claude-opus-4-6">Claude Opus</option>
+      <option value="claude-sonnet-4-5">Claude Sonnet</option>
+      <option value="grok-4-1-fast-reasoning">Grok 4.1</option>
+      <option value="grok-3">Grok 3</option>
+      <option value="deepseek-chat">DeepSeek</option>
+    </select>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:#8b949e">Safe edits: lines are commented out, never deleted</span>
+    <button class="btn-dev-clear" onclick="clearDevBar()">Clear</button>
+  </div>
+  <div id="dev-bar-chat"></div>
+  <div id="dev-bar-input">
+    <textarea id="dev-input" placeholder="Talk directly to an AI about this app's code... ask questions or request changes" rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();devSend()}"
+      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+    <button onclick="devSend()" class="btn-dev-send" id="btn-dev-send">Send</button>
   </div>
 </div>
 
@@ -272,9 +810,19 @@ const chat = document.getElementById('chat');
 const input = document.getElementById('input');
 const sidebar = document.getElementById('sidebar');
 const btnSend = document.getElementById('btn-send');
+const btnStop = document.getElementById('btn-stop');
+const btnPause = document.getElementById('btn-pause');
+const btnDebate = document.getElementById('btn-debate');
+const mentionPopup = document.getElementById('mention-popup');
 let ws;
 let thinkingEls = {};
 let participants = [];
+let mentionIndex = -1;
+let mentionFiltered = [];
+let isDeliberating = false;
+let isPaused = false;
+let presets = {};
+let statsTimer;
 
 function toggleSidebar() {
   sidebar.classList.toggle('hidden');
@@ -282,68 +830,335 @@ function toggleSidebar() {
 
 function renderSidebar() {
   const models = participants.filter(p => p.type === 'model');
-  const agents = participants.filter(p => p.type === 'agent');
-  const activeCount = participants.filter(p => p.enabled).length;
+  const builtinAgents = participants.filter(p => p.type === 'agent' && !p.researched);
+  const personas = participants.filter(p => p.researched);
 
-  let html = '';
+  sidebar.textContent = '';
 
-  html += `<div class="sidebar-section">
-    <h3>AI Models <span class="active-count">${models.filter(m=>m.enabled).length}</span></h3>`;
-  models.forEach(p => {
-    html += `<div class="participant-toggle ${p.enabled ? 'active' : ''}" onclick="toggleParticipant('${p.name}')">
-      <span class="dot" style="background:${p.color}"></span>
-      <div class="info">
-        <div class="pname">${p.name}</div>
-        <div class="ptype">${p.id}</div>
-      </div>
-      <div class="toggle-switch"></div>
-    </div>`;
+  function createSection(title, items, showRemove) {
+    const section = document.createElement('div');
+    section.className = 'sidebar-section';
+    const h3 = document.createElement('h3');
+    h3.textContent = title + ' ';
+    const count = document.createElement('span');
+    count.className = 'active-count';
+    count.textContent = items.filter(i => i.enabled).length;
+    h3.appendChild(count);
+    section.appendChild(h3);
+
+    items.forEach(p => {
+      const toggle = document.createElement('div');
+      toggle.className = 'participant-toggle' + (p.enabled ? ' active' : '');
+      toggle.onclick = (e) => {
+        if (e.target.classList.contains('btn-remove')) return;
+        toggleParticipant(p.name);
+      };
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = p.color;
+      toggle.appendChild(dot);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      const pname = document.createElement('div');
+      pname.className = 'pname';
+      pname.textContent = p.name;
+      const ptype = document.createElement('div');
+      ptype.className = 'ptype';
+      ptype.textContent = p.researched ? 'persona · ' + p.id : p.id;
+      info.appendChild(pname);
+      info.appendChild(ptype);
+      toggle.appendChild(info);
+
+      if (showRemove) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove';
+        removeBtn.textContent = '\u00d7';
+        removeBtn.title = 'Remove persona';
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          removePersona(p.name);
+        };
+        toggle.appendChild(removeBtn);
+      }
+
+      const sw = document.createElement('div');
+      sw.className = 'toggle-switch';
+      toggle.appendChild(sw);
+
+      section.appendChild(toggle);
+    });
+    return section;
+  }
+
+  sidebar.appendChild(createSection('AI Models', models, false));
+  if (personas.length > 0) {
+    sidebar.appendChild(createSection('Personas', personas, true));
+  }
+  sidebar.appendChild(createSection('Agents', builtinAgents, false));
+
+  const statsSection = document.createElement('div');
+  statsSection.className = 'sidebar-section';
+  statsSection.id = 'model-stats-section';
+  const statsTitle = document.createElement('h3');
+  statsTitle.textContent = 'Model Stats';
+  statsSection.appendChild(statsTitle);
+  const statsBody = document.createElement('div');
+  statsBody.id = 'model-stats-body';
+  statsBody.className = 'stats-body';
+  statsBody.textContent = 'Loading...';
+  statsSection.appendChild(statsBody);
+  sidebar.appendChild(statsSection);
+
+  // Add Persona form
+  const personaSection = document.createElement('div');
+  personaSection.className = 'sidebar-section persona-section';
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Add Real Person';
+  personaSection.appendChild(h3);
+
+  const form = document.createElement('div');
+  form.className = 'persona-form';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.id = 'persona-name';
+  nameInput.placeholder = 'e.g., Elon Musk, Tony Robbins...';
+  nameInput.oninput = () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type: 'suggest_model', person: nameInput.value}));
+    }
+  };
+  form.appendChild(nameInput);
+
+  const hint = document.createElement('div');
+  hint.className = 'model-hint';
+  hint.id = 'persona-model-hint';
+  form.appendChild(hint);
+
+  const modelSelect = document.createElement('select');
+  modelSelect.id = 'persona-model';
+  [
+    ['claude-opus-4-6', 'Claude Opus (best general)'],
+    ['gpt-5.2', 'GPT-5.2 (best for coding/creative)'],
+    ['gpt-5-mini', 'GPT-5 Mini (fast/cheap)'],
+    ['o3', 'O3 (deep reasoning)'],
+    ['grok-4-1-fast-reasoning', 'Grok 4.1 (best for tech/Elon)'],
+    ['grok-3', 'Grok 3'],
+    ['deepseek-chat', 'DeepSeek (best for tech/China)'],
+    ['claude-sonnet-4-5', 'Claude Sonnet (fast)'],
+  ].forEach(([val, label]) => {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = label;
+    modelSelect.appendChild(opt);
   });
-  html += '</div>';
+  form.appendChild(modelSelect);
 
-  html += `<div class="sidebar-section">
-    <h3>Agents <span class="active-count">${agents.filter(a=>a.enabled).length}</span></h3>`;
-  agents.forEach(p => {
-    html += `<div class="participant-toggle ${p.enabled ? 'active' : ''}" onclick="toggleParticipant('${p.name}')">
-      <span class="dot" style="background:${p.color}"></span>
-      <div class="info">
-        <div class="pname">${p.name}</div>
-        <div class="ptype">${p.id}</div>
-      </div>
-      <div class="toggle-switch"></div>
-    </div>`;
-  });
-  html += '</div>';
+  const researchBtn = document.createElement('button');
+  researchBtn.className = 'btn-research';
+  researchBtn.id = 'btn-research';
+  researchBtn.textContent = 'Research & Add';
+  researchBtn.onclick = () => researchPersona();
+  form.appendChild(researchBtn);
 
-  sidebar.innerHTML = html;
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'persona-status';
+  form.appendChild(statusDiv);
+
+  personaSection.appendChild(form);
+  sidebar.appendChild(personaSection);
 }
+
+function startStatsPoll() {
+  if (statsTimer) clearInterval(statsTimer);
+  fetchModelStats();
+  statsTimer = setInterval(fetchModelStats, 10000);
+}
+
+function fetchModelStats() {
+  fetch('/api/model-stats')
+    .then(r => r.json())
+    .then(data => renderModelStats(data.models || {}))
+    .catch(() => renderModelStats({}));
+}
+
+function renderModelStats(models) {
+  const body = document.getElementById('model-stats-body');
+  if (!body) return;
+  body.textContent = '';
+  const entries = Object.entries(models || {}).sort((a, b) => (b[1].requests || 0) - (a[1].requests || 0));
+  if (entries.length === 0) {
+    body.textContent = 'No data yet';
+    return;
+  }
+  entries.slice(0, 12).forEach(([id, s]) => {
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+
+    const name = document.createElement('div');
+    name.className = 'stat-name';
+    name.textContent = id;
+    row.appendChild(name);
+
+    const meta = document.createElement('div');
+    meta.className = 'stat-meta';
+    const avg = s.avg_ms ? Math.round(s.avg_ms) + 'ms' : '--';
+    const errs = s.errors || 0;
+    meta.textContent = `${avg} · err ${errs}`;
+    row.appendChild(meta);
+
+    const badge = document.createElement('div');
+    badge.className = 'stat-badge';
+    badge.textContent = s.requests || 0;
+    row.appendChild(badge);
+
+    body.appendChild(row);
+  });
+}
+
+let reconnectAttempts = 0;
 
 function connect() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+  ws = new WebSocket(protocol + '//' + location.host + '/ws');
 
-  ws.onopen = () => console.log('Connected');
+  ws.onopen = () => {
+    console.log('Connected');
+    reconnectAttempts = 0;
+    startStatsPoll();
+  };
 
   ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (err) {
+      console.error('Error parsing WebSocket message:', err);
+      return;
+    }
 
     if (data.type === 'participants') {
       participants = data.data;
       renderSidebar();
+    } else if (data.type === 'settings') {
+      const sel = document.getElementById('max-rounds');
+      if (sel) sel.value = data.max_rounds;
+    } else if (data.type === 'presets') {
+      presets = data.data;
+      renderPresets();
+    } else if (data.type === 'deliberation_state') {
+      isDeliberating = data.data.active;
+      isPaused = data.data.paused;
+      updateControlButtons();
     } else if (data.type === 'message') {
       removeThinking(data.name);
       addMessage(data);
-      btnSend.disabled = false;
+      if (!isDeliberating) btnSend.disabled = false;
     } else if (data.type === 'thinking') {
       showThinking(data.name, data.color);
+    } else if (data.type === 'round_separator') {
+      addRoundSeparator(data.round, data.label);
+    } else if (data.type === 'deliberation_start') {
+      isDeliberating = true;
+      isPaused = false;
+      updateControlButtons();
+      addDeliberationBanner(data.participants, data.task, true);
+    } else if (data.type === 'deliberation_end') {
+      isDeliberating = false;
+      isPaused = false;
+      updateControlButtons();
+      btnSend.disabled = false;
+      addDeliberationBanner([], null, false);
+    } else if (data.type === 'deliberation_stopped') {
+      isDeliberating = false;
+      isPaused = false;
+      updateControlButtons();
+      btnSend.disabled = false;
+      clearAllThinking();
+      addStoppedBanner();
+    } else if (data.type === 'deliberation_paused') {
+      isPaused = true;
+      updateControlButtons();
+      btnSend.disabled = false;
+      addPausedBanner(true);
+    } else if (data.type === 'deliberation_resumed') {
+      isPaused = false;
+      updateControlButtons();
+      addPausedBanner(false);
+    } else if (data.type === 'directed_start') {
+      isDeliberating = true;
+      isPaused = false;
+      updateControlButtons();
+      addDirectedBanner(data.participants, data.topic, true);
+    } else if (data.type === 'directed_end') {
+      isDeliberating = false;
+      isPaused = false;
+      updateControlButtons();
+      btnSend.disabled = false;
+      addDirectedBanner(data.participants, null, false);
+    } else if (data.type === 'edit_proposed') {
+      addEditBanner(data.edit_id, data.sender, data.instruction, 'proposed');
+    } else if (data.type === 'edit_running') {
+      addEditBanner(data.edit_id, '', '', 'running', data.editor);
+    } else if (data.type === 'edit_applied') {
+      addEditBanner(data.edit_id, '', data.result || 'Done', 'applied', data.editor);
+    } else if (data.type === 'edit_failed') {
+      addEditBanner(data.edit_id, '', data.error || 'Unknown error', 'failed');
+    } else if (data.type === 'edit_rejected') {
+      const el = document.getElementById('edit-' + data.edit_id);
+      if (el) el.remove();
+    } else if (data.type === 'persona_researching') {
+      addPersonaBanner('researching', data.person, 'via ' + data.model);
+      updatePersonaStatus('researching', 'Researching ' + data.person + '...');
+    } else if (data.type === 'persona_added') {
+      addPersonaBanner('added', data.person, data.model);
+      updatePersonaStatus('success', data.person + ' added!');
+      resetPersonaForm();
+    } else if (data.type === 'persona_error') {
+      addPersonaBanner('error', data.person || '?', data.error);
+      updatePersonaStatus('error', data.error);
+      resetPersonaForm();
+    } else if (data.type === 'model_suggestion') {
+      const hint = document.getElementById('persona-model-hint');
+      const select = document.getElementById('persona-model');
+      if (hint && data.model !== 'claude-opus-4-6') {
+        const modelNames = {'grok-4-1-fast-reasoning': 'Grok 4.1', 'grok-3': 'Grok 3', 'deepseek-chat': 'DeepSeek'};
+        hint.textContent = 'Tip: ' + (modelNames[data.model] || data.model) + ' recommended for this person';
+        if (select) select.value = data.model;
+      } else if (hint) {
+        hint.textContent = '';
+      }
+    } else if (data.type === 'dev_bar_thinking') {
+      removeDevThinking();
+      const div = document.createElement('div');
+      div.className = 'dev-thinking';
+      div.textContent = data.model + ' is thinking...';
+      devBarChat.appendChild(div);
+      devBarChat.scrollTop = devBarChat.scrollHeight;
+    } else if (data.type === 'dev_bar_response') {
+      removeDevThinking();
+      addDevMsg('assistant', data.model, data.content, data.color, data.model_id);
+      document.getElementById('btn-dev-send').disabled = false;
+    } else if (data.type === 'dev_bar_edit_running') {
+      addDevStatus('running', 'Applying edit via ' + data.model + '...');
+    } else if (data.type === 'dev_bar_edit_applied') {
+      addDevStatus('applied', 'Edit applied by ' + data.model + '. Restart container to see changes.');
+    } else if (data.type === 'dev_bar_edit_failed') {
+      addDevStatus('failed', 'Edit failed: ' + data.error);
+    } else if (data.type === 'dev_bar_cleared') {
+      devBarChat.textContent = '';
     } else if (data.type === 'clear') {
-      chat.innerHTML = '';
+      chat.textContent = '';
     }
   };
 
   ws.onclose = () => {
-    console.log('Disconnected, reconnecting...');
-    setTimeout(connect, 2000);
+    console.log('Disconnected, attempting reconnect...');
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    reconnectAttempts++;
+    setTimeout(connect, delay);
   };
 }
 
@@ -355,23 +1170,118 @@ function toggleParticipant(name) {
 
 function addMessage(data) {
   const div = document.createElement('div');
-  div.className = `message ${data.role}`;
+  let classes = 'message ' + data.role;
+  if (data.is_discussion) classes += ' discussion';
+  if (data.is_final) classes += ' final-answer';
+  const isError = data.content && /^\[(Error|Timeout|Connection error):/.test(data.content);
+  if (isError) classes += ' error-msg';
+  div.className = classes;
 
   if (data.role === 'assistant') {
-    const badgeClass = data.badge === 'agent' ? 'badge-agent' : 'badge-model';
-    const badgeText = data.badge === 'agent' ? 'Agent' : 'Model';
-    div.innerHTML = `
-      <div class="sender">
-        <span class="dot" style="background:${data.color}"></span>
-        ${data.name}
-        <span class="badge ${badgeClass}">${badgeText}</span>
-      </div>
-      <div class="content">${formatContent(data.content)}</div>
-    `;
+    const sender = document.createElement('div');
+    sender.className = 'sender';
+
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = data.color;
+    sender.appendChild(dot);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = ' ' + data.name + ' ';
+    sender.appendChild(nameSpan);
+
+    const badge = document.createElement('span');
+    if (data.badge === 'synthesis') {
+      badge.className = 'badge badge-synthesis';
+      badge.textContent = 'Final Answer';
+    } else {
+      badge.className = 'badge ' + (data.badge === 'agent' ? 'badge-agent' : 'badge-model');
+      badge.textContent = data.badge === 'agent' ? 'Agent' : 'Model';
+    }
+    sender.appendChild(badge);
+
+    if (data.round && !data.is_final) {
+      const roundBadge = document.createElement('span');
+      roundBadge.className = 'badge';
+      roundBadge.style.cssText = 'background:#5b21b6;color:#e0d4ff;margin-left:4px';
+      roundBadge.textContent = 'R' + data.round;
+      sender.appendChild(roundBadge);
+    }
+
+    div.appendChild(sender);
+
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.innerHTML = formatContent(data.content);
+    div.appendChild(content);
+
+    if (data.references && data.references.length > 0) {
+      const refs = document.createElement('div');
+      refs.className = 'refs';
+      refs.textContent = 'Responding to ' + data.references.join(', ');
+      div.appendChild(refs);
+    }
+
+    // Add "Apply as edit" button to AI messages
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn-apply';
+    applyBtn.textContent = 'Apply as edit';
+    applyBtn.title = 'Send this response to Claude Code to edit the roundtable app';
+    applyBtn.onclick = () => proposeEdit(data.content, data.name);
+    div.appendChild(applyBtn);
   } else {
-    div.innerHTML = `<div class="content">${escapeHtml(data.content)}</div>`;
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.textContent = data.content;
+    div.appendChild(content);
   }
 
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addRoundSeparator(round, label) {
+  const div = document.createElement('div');
+  div.className = 'round-separator' + (round === 'final' ? ' final' : '');
+  const line1 = document.createElement('div');
+  line1.className = 'line';
+  const labelEl = document.createElement('span');
+  labelEl.className = 'label';
+  labelEl.textContent = label || (round === 'manual' ? 'Extra debate round' : 'Round ' + round);
+  const line2 = document.createElement('div');
+  line2.className = 'line';
+  div.appendChild(line1);
+  div.appendChild(labelEl);
+  div.appendChild(line2);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addDeliberationBanner(names, task, isStart) {
+  const div = document.createElement('div');
+  div.className = 'deliberation-banner ' + (isStart ? 'start' : 'end');
+  const strong = document.createElement('strong');
+  if (isStart) {
+    strong.textContent = 'Deliberation started: ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(names.join(', ') + ' are working on this'));
+  } else {
+    strong.textContent = 'Deliberation complete';
+    div.appendChild(strong);
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addDirectedBanner(names, topic, isStart) {
+  const div = document.createElement('div');
+  div.className = 'directed-banner';
+  const strong = document.createElement('strong');
+  strong.textContent = isStart ? 'Focused discussion: ' : 'Discussion ended: ';
+  div.appendChild(strong);
+  div.appendChild(document.createTextNode(
+    names.join(' & ') + (isStart && topic ? ' \u2014 ' + topic : '')
+  ));
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -380,15 +1290,22 @@ function showThinking(name, color) {
   if (thinkingEls[name]) return;
   const div = document.createElement('div');
   div.className = 'thinking-indicator';
-  div.innerHTML = `
-    <span class="dot" style="background:${color};width:8px;height:8px;border-radius:50%;display:inline-block"></span>
-    ${name} is thinking
-    <span class="thinking-dots">
-      <span style="background:${color}"></span>
-      <span style="background:${color}"></span>
-      <span style="background:${color}"></span>
-    </span>
-  `;
+
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.cssText = 'background:' + color + ';width:8px;height:8px;border-radius:50%;display:inline-block';
+  div.appendChild(dot);
+  div.appendChild(document.createTextNode(' ' + name + ' is thinking '));
+
+  const dots = document.createElement('span');
+  dots.className = 'thinking-dots';
+  for (let i = 0; i < 3; i++) {
+    const d = document.createElement('span');
+    d.style.background = color;
+    dots.appendChild(d);
+  }
+  div.appendChild(dots);
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   thinkingEls[name] = div;
@@ -404,7 +1321,12 @@ function removeThinking(name) {
 function send() {
   const text = input.value.trim();
   if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({type: 'message', content: text}));
+  closeMentionPopup();
+  if (isPaused) {
+    ws.send(JSON.stringify({type: 'resume', content: text}));
+  } else {
+    ws.send(JSON.stringify({type: 'message', content: text}));
+  }
   input.value = '';
   input.style.height = 'auto';
   btnSend.disabled = true;
@@ -415,8 +1337,486 @@ function requestCrosstalk() {
   ws.send(JSON.stringify({type: 'crosstalk'}));
 }
 
+function setMaxRounds(val) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type: 'set_max_rounds', rounds: parseInt(val)}));
+  }
+}
+
 function clearChat() {
   fetch('/api/clear', {method: 'POST'});
+}
+
+function downloadMinutes() {
+  fetch('/api/minutes')
+    .then(r => r.json())
+    .then(data => {
+      const blob = new Blob([data.markdown], {type: 'text/markdown'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+      a.href = url;
+      a.download = 'roundtable-minutes-' + ts + '.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+}
+
+// --- @mention autocomplete ---
+function handleInputKeydown(event) {
+  if (mentionPopup.style.display === 'block') {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      mentionIndex = Math.min(mentionIndex + 1, mentionFiltered.length - 1);
+      renderMentionPopup();
+      return;
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      mentionIndex = Math.max(mentionIndex - 1, 0);
+      renderMentionPopup();
+      return;
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      if (mentionIndex >= 0 && mentionFiltered[mentionIndex]) {
+        event.preventDefault();
+        insertMention(mentionFiltered[mentionIndex]);
+        return;
+      }
+    } else if (event.key === 'Escape') {
+      closeMentionPopup();
+      return;
+    }
+  }
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    send();
+  }
+}
+
+function handleMentionInput() {
+  const val = input.value;
+  const cursor = input.selectionStart;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+
+  const before = val.substring(0, cursor);
+  const match = before.match(/@(\w*)$/);
+  if (match) {
+    const query = match[1].toLowerCase();
+    mentionFiltered = participants.filter(p =>
+      p.name.toLowerCase().startsWith(query) || p.name.toLowerCase().includes(query)
+    ).slice(0, 8);
+    if (mentionFiltered.length > 0) {
+      mentionIndex = 0;
+      renderMentionPopup();
+      mentionPopup.style.display = 'block';
+      return;
+    }
+  }
+  closeMentionPopup();
+}
+
+function renderMentionPopup() {
+  mentionPopup.textContent = '';
+  mentionFiltered.forEach((p, i) => {
+    const item = document.createElement('div');
+    item.className = 'mention-item' + (i === mentionIndex ? ' selected' : '');
+    item.onmousedown = () => insertMention(p);
+
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = p.color;
+    item.appendChild(dot);
+
+    const name = document.createElement('span');
+    name.textContent = p.name;
+    item.appendChild(name);
+
+    const type = document.createElement('span');
+    type.style.cssText = 'color:#8b949e;font-size:11px;margin-left:auto';
+    type.textContent = p.type;
+    item.appendChild(type);
+
+    mentionPopup.appendChild(item);
+  });
+}
+
+function insertMention(participant) {
+  const val = input.value;
+  const cursor = input.selectionStart;
+  const before = val.substring(0, cursor);
+  const after = val.substring(cursor);
+  const newBefore = before.replace(/@\w*$/, '@' + participant.name + ' ');
+  input.value = newBefore + after;
+  input.selectionStart = input.selectionEnd = newBefore.length;
+  closeMentionPopup();
+  input.focus();
+}
+
+function closeMentionPopup() {
+  mentionPopup.style.display = 'none';
+  mentionIndex = -1;
+  mentionFiltered = [];
+}
+
+function renderPresets() {
+  const bar = document.getElementById('preset-bar');
+  // Keep the label, clear the rest
+  while (bar.children.length > 1) bar.removeChild(bar.lastChild);
+  Object.entries(presets).forEach(([id, preset]) => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.onclick = () => activatePreset(id);
+    btn.textContent = preset.label;
+    const desc = document.createElement('span');
+    desc.className = 'preset-desc';
+    desc.textContent = preset.description;
+    btn.appendChild(desc);
+    bar.appendChild(btn);
+  });
+}
+
+function activatePreset(presetId) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'activate_preset', preset: presetId}));
+}
+
+function updateControlButtons() {
+  btnStop.disabled = !isDeliberating;
+  btnPause.disabled = !isDeliberating && !isPaused;
+  btnDebate.disabled = isDeliberating;
+  if (isPaused) {
+    btnPause.textContent = 'Resume';
+    btnPause.classList.add('resumed');
+    btnPause.disabled = false;
+    btnSend.disabled = false;
+    input.placeholder = 'Type to inject info, then Send to resume...';
+  } else {
+    btnPause.textContent = 'Pause';
+    btnPause.classList.remove('resumed');
+    if (isDeliberating) {
+      input.placeholder = 'Deliberation in progress...';
+    } else {
+      input.placeholder = 'Give an instruction... AIs will deliberate and give you one answer. Use @Name @Name for targeted discussion.';
+    }
+  }
+}
+
+function requestStop() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'stop'}));
+}
+
+function requestPauseResume() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (isPaused) {
+    ws.send(JSON.stringify({type: 'resume'}));
+  } else {
+    ws.send(JSON.stringify({type: 'pause'}));
+  }
+}
+
+function clearAllThinking() {
+  Object.keys(thinkingEls).forEach(name => removeThinking(name));
+}
+
+function addPausedBanner(isPaused) {
+  const div = document.createElement('div');
+  div.className = 'paused-banner';
+  const strong = document.createElement('strong');
+  strong.textContent = isPaused ? 'Deliberation paused' : 'Deliberation resumed';
+  div.appendChild(strong);
+  if (isPaused) {
+    div.appendChild(document.createTextNode(' — type a message and send to inject info'));
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addStoppedBanner() {
+  const div = document.createElement('div');
+  div.className = 'stopped-banner';
+  const strong = document.createElement('strong');
+  strong.textContent = 'Deliberation stopped';
+  div.appendChild(strong);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function proposeEdit(content, sender) {
+  fetch('/api/propose-edit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({instruction: content, sender: sender}),
+  });
+}
+
+function approveEdit(editId) {
+  const banner = document.getElementById('edit-' + editId);
+  const select = banner ? banner.querySelector('select.editor-select') : null;
+  const reasonInput = banner ? banner.querySelector('input.edit-reason') : null;
+  const model = select ? select.value : 'claude-opus-4-6';
+  const reason = reasonInput ? reasonInput.value : '';
+  fetch('/api/approve-edit/' + editId, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({editor_model: model, reason: reason}),
+  });
+}
+
+function rejectEdit(editId) {
+  fetch('/api/reject-edit/' + editId, {method: 'POST'});
+}
+
+function addEditBanner(editId, sender, instruction, status, editor) {
+  // Remove existing banner for this edit if any
+  const existing = document.getElementById('edit-' + editId);
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.className = 'edit-banner ' + status;
+  div.id = 'edit-' + editId;
+
+  const strong = document.createElement('strong');
+  if (status === 'proposed') {
+    strong.textContent = 'Edit proposed by ' + sender + ': ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(instruction));
+    div.appendChild(document.createElement('br'));
+
+    // Model selector
+    const select = document.createElement('select');
+    select.className = 'editor-select';
+    [
+      ['claude-opus-4-6', 'Claude Opus'],
+      ['claude-sonnet-4-5', 'Claude Sonnet'],
+      ['grok-3', 'Grok 3'],
+      ['grok-3-mini', 'Grok 3 Mini'],
+      ['deepseek-chat', 'DeepSeek'],
+    ].forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    div.appendChild(select);
+
+    // Reason field
+    const reasonInput = document.createElement('input');
+    reasonInput.className = 'edit-reason';
+    reasonInput.type = 'text';
+    reasonInput.placeholder = 'Why this edit?';
+    div.appendChild(reasonInput);
+
+    const actions = document.createElement('span');
+    actions.className = 'edit-actions';
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn-approve';
+    approveBtn.textContent = 'Approve';
+    approveBtn.onclick = () => approveEdit(editId);
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'btn-reject';
+    rejectBtn.textContent = 'Reject';
+    rejectBtn.onclick = () => rejectEdit(editId);
+    actions.appendChild(approveBtn);
+    actions.appendChild(rejectBtn);
+    div.appendChild(actions);
+  } else if (status === 'running') {
+    strong.textContent = 'Applying edit... ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode((editor || 'AI') + ' is making changes'));
+  } else if (status === 'applied') {
+    strong.textContent = 'Edit applied by ' + (editor || 'AI') + '! ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode('Restart container to see changes'));
+  } else if (status === 'failed') {
+    strong.textContent = 'Edit failed: ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(instruction));
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ========== Persona Research ==========
+function researchPersona() {
+  const nameInput = document.getElementById('persona-name');
+  const modelSelect = document.getElementById('persona-model');
+  const btn = document.getElementById('btn-research');
+  const name = nameInput.value.trim();
+  if (!name || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  ws.send(JSON.stringify({
+    type: 'research_persona',
+    person: name,
+    model: modelSelect.value,
+  }));
+  btn.disabled = true;
+  btn.textContent = 'Researching...';
+}
+
+function removePersona(name) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'remove_persona', name: name}));
+}
+
+function addPersonaBanner(type, person, detail) {
+  const div = document.createElement('div');
+  div.className = 'persona-banner ' + type;
+  const strong = document.createElement('strong');
+  if (type === 'researching') {
+    strong.textContent = 'Researching ' + person + '... ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(detail || 'Building persona'));
+  } else if (type === 'added') {
+    strong.textContent = person + ' joined the roundtable! ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode('Researched by ' + (detail || 'AI')));
+  } else if (type === 'error') {
+    strong.textContent = 'Failed to add ' + person + ': ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(detail || 'Unknown error'));
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function updatePersonaStatus(cssClass, text) {
+  const el = document.getElementById('persona-status');
+  if (!el) return;
+  el.className = 'persona-status ' + cssClass;
+  el.textContent = text;
+}
+
+function resetPersonaForm() {
+  const btn = document.getElementById('btn-research');
+  const nameInput = document.getElementById('persona-name');
+  if (btn) { btn.disabled = false; btn.textContent = 'Research & Add'; }
+  if (nameInput) nameInput.value = '';
+}
+
+// ========== Developer Bar ==========
+const devBar = document.getElementById('dev-bar');
+const devBarChat = document.getElementById('dev-bar-chat');
+const devInput = document.getElementById('dev-input');
+const devToggle = document.getElementById('dev-bar-toggle');
+const devModelSelect = document.getElementById('dev-model');
+
+function toggleDevBar() {
+  devBar.classList.toggle('open');
+  devToggle.classList.toggle('active');
+}
+
+function devSend() {
+  const text = devInput.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  const model = devModelSelect.value;
+  ws.send(JSON.stringify({type: 'dev_bar_message', model: model, content: text}));
+  addDevMsg('user', 'You', text);
+  devInput.value = '';
+  devInput.style.height = 'auto';
+  document.getElementById('btn-dev-send').disabled = true;
+}
+
+function addDevMsg(role, sender, content, color, modelId) {
+  const div = document.createElement('div');
+  div.className = 'dev-msg ' + role;
+  if (role === 'assistant') {
+    const senderEl = document.createElement('div');
+    senderEl.className = 'dev-sender';
+    senderEl.textContent = sender;
+    if (color) senderEl.style.color = color;
+    div.appendChild(senderEl);
+  }
+  const contentEl = document.createElement('div');
+  contentEl.className = 'dev-content';
+  // Use the existing formatContent which escapes HTML first, then applies safe formatting
+  contentEl.appendChild(safeFormatContent(content));
+  div.appendChild(contentEl);
+
+  // Add "Apply Edit" button to AI responses
+  if (role === 'assistant') {
+    const actions = document.createElement('div');
+    actions.className = 'dev-actions';
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn-dev-apply';
+    applyBtn.textContent = 'Apply as Safe Edit';
+    applyBtn.onclick = () => {
+      const reason = prompt('Reason for this edit (optional):') || '';
+      ws.send(JSON.stringify({
+        type: 'dev_bar_apply',
+        instruction: content,
+        model: modelId || devModelSelect.value,
+        reason: reason,
+      }));
+    };
+    actions.appendChild(applyBtn);
+    div.appendChild(actions);
+  }
+  devBarChat.appendChild(div);
+  devBarChat.scrollTop = devBarChat.scrollHeight;
+}
+
+function addDevStatus(status, text) {
+  const div = document.createElement('div');
+  div.className = 'dev-edit-status ' + status;
+  div.textContent = text;
+  devBarChat.appendChild(div);
+  devBarChat.scrollTop = devBarChat.scrollHeight;
+}
+
+function removeDevThinking() {
+  const el = devBarChat.querySelector('.dev-thinking');
+  if (el) el.remove();
+}
+
+function clearDevBar() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'dev_bar_clear'}));
+  devBarChat.textContent = '';
+}
+
+// Safe content formatter that builds DOM nodes instead of setting innerHTML
+function safeFormatContent(text) {
+  const frag = document.createDocumentFragment();
+  // Split by code blocks first
+  const parts = text.split(/(```[\s\S]*?```)/g);
+  parts.forEach(part => {
+    if (part.startsWith('```') && part.endsWith('```')) {
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.textContent = part.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+      pre.appendChild(code);
+      frag.appendChild(pre);
+    } else {
+      // Handle inline code and line breaks
+      const lines = part.split('\n');
+      lines.forEach((line, i) => {
+        // Handle inline code
+        const inlineParts = line.split(/(`[^`]+`)/g);
+        inlineParts.forEach(ip => {
+          if (ip.startsWith('`') && ip.endsWith('`')) {
+            const codeEl = document.createElement('code');
+            codeEl.textContent = ip.slice(1, -1);
+            frag.appendChild(codeEl);
+          } else if (ip) {
+            // Handle bold
+            const boldParts = ip.split(/(\*\*[^*]+\*\*)/g);
+            boldParts.forEach(bp => {
+              if (bp.startsWith('**') && bp.endsWith('**')) {
+                const strong = document.createElement('strong');
+                strong.textContent = bp.slice(2, -2);
+                frag.appendChild(strong);
+              } else if (bp) {
+                frag.appendChild(document.createTextNode(bp));
+              }
+            });
+          }
+        });
+        if (i < lines.length - 1) frag.appendChild(document.createElement('br'));
+      });
+    }
+  });
+  return frag;
 }
 
 function escapeHtml(text) {
@@ -433,11 +1833,6 @@ function formatContent(text) {
   html = html.replace(/\n/g, '<br>');
   return html;
 }
-
-input.addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
 
 connect();
 </script>

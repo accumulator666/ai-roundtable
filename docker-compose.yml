@@ -25,6 +25,26 @@ services:
       timeout: 3s
       retries: 3
 
+  # --- Reverse Proxy ---
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ai-mesh-caddy
+    restart: unless-stopped
+    environment:
+      - ROUNDTABLE_DOMAIN=${ROUNDTABLE_DOMAIN:-roundtable.localhost}
+    ports:
+      - "${PORT_HTTP:-80}:80"
+      - "${PORT_HTTPS:-443}:443"
+      - "8444:8444"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - /data/caddy/data:/data
+      - /data/caddy/config:/config
+    networks:
+      - ai-mesh
+      - ai-stack
+
   # --- AI Proxies ---
 
   claude-proxy:
@@ -145,10 +165,10 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT_CLAUDE_CODE:-8104}:8000"
-    environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
       - claude-code-workspace:/workspace
+      - /home/tek/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+      - ./collab-chat:/collab-chat
     networks:
       - ai-mesh
     healthcheck:
@@ -172,6 +192,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
       - POSTGRES_USER=${POSTGRES_USER:-admin}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - R730_OLLAMA_URL=${R730_OLLAMA_URL:-http://10.0.0.2:11434}
+    extra_hosts:
+      - "r730:10.0.0.2"
     volumes:
       - ./router:/app
       - ./shared:/app/shared
@@ -210,10 +233,11 @@ services:
       - "${PORT_N8N:-5678}:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - WEBHOOK_URL=http://n8n:5678/
       - N8N_RUNNERS_ENABLED=true
+      - N8N_SECURE_COOKIE=false
     volumes:
       - n8n-data:/home/node/.n8n
       - ./n8n:/home/node/workflows
@@ -228,7 +252,7 @@ services:
     container_name: ai-mesh-collab-chat
     restart: unless-stopped
     ports:
-      - "8130:8000"
+      - "${PORT_COLLAB_CHAT:-8130}:8000"
     environment:
       - ROUTER_URL=http://ai-mesh-router:8000
     volumes:
@@ -254,7 +278,7 @@ services:
     container_name: ai-mesh-crewai
     restart: unless-stopped
     ports:
-      - "8120:8000"
+      - "${PORT_CREWAI:-8120}:8000"
     environment:
       - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
       - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}

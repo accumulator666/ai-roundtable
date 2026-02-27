@@ -8,7 +8,19 @@ app = FastAPI(title="ChatGPT Proxy", version="1.0.0")
 
 API_KEY = os.environ.get("OPENAI_API_KEY", "")
 BASE_URL = "https://api.openai.com"
-AVAILABLE_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o3-mini"]
+AVAILABLE_MODELS = [
+    # GPT-5.2 (latest flagship)
+    "gpt-5.2",
+    # GPT-5 family
+    "gpt-5", "gpt-5-mini", "gpt-5-nano",
+    # Reasoning models
+    "o4-mini", "o3", "o3-mini", "o1", "o1-pro",
+    # Legacy (retiring Feb 13, 2026)
+    "gpt-4o", "gpt-4o-mini",
+]
+
+# Models that don't support temperature or max_tokens parameters
+RESTRICTED_MODELS = {"o1", "o1-pro", "o3", "o3-mini", "o4-mini", "gpt-5-mini", "gpt-5-nano"}
 
 
 @app.post("/v1/chat/completions")
@@ -18,6 +30,14 @@ async def chat_completions(request: Request):
 
     body = await request.json()
     stream = body.get("stream", False)
+
+    # Normalize parameters for newer OpenAI models
+    model = body.get("model", "")
+    if model in RESTRICTED_MODELS:
+        body.pop("temperature", None)
+        body.pop("top_p", None)
+    if "max_tokens" in body and any(model.startswith(p) for p in ("gpt-5", "o1", "o3", "o4")):
+        body["max_completion_tokens"] = body.pop("max_tokens")
 
     headers = {
         "Authorization": f"Bearer {API_KEY}",

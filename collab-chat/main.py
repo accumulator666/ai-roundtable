@@ -1,28 +1,109 @@
 import os
+import re
 import json
 import time
 import uuid
 import asyncio
 import httpx
+import shutil
+from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from pathlib import Path
 
-app = FastAPI(title="AI Roundtable Chat", version="2.0.0")
+app = FastAPI(title="AI Roundtable Chat", version="3.0.0")
+start_time = time.time()
 
+# ============== Configuration Constants ==============
 ROUTER_URL = os.environ.get("ROUTER_URL", "http://ai-mesh-router:8000")
+CLAUDE_CODE_URL = os.environ.get("CLAUDE_CODE_URL", "http://claude-code:8000")
+
+# Timeouts (seconds)
+DEFAULT_TIMEOUT: float = 120.0
+LONG_TIMEOUT: float = 180.0
+EXTERNAL_API_TIMEOUT: float = 10.0
+
+# Token limits
+MAX_TOKENS_DEFAULT: int = 2048
+TEMPERATURE_DEFAULT: float = 0.8
+
+# History limits
+HISTORY_LIMIT_ROUND: int = 30
+HISTORY_LIMIT_SYNTHESIS: int = 40
+HISTORY_LIMIT_DIRECTED: int = 16
+HISTORY_LIMIT_CROSSTALK: int = 20
+HISTORY_LIMIT_DEV_BAR: int = 10
+MAX_CONVERSATION_HISTORY: int = 200  # Trim oldest messages beyond this
+
+# Deliberation settings
+max_deliberation_rounds: int = 0
+SAFETY_CAP: int = 10
+
+# Retry settings
+MAX_RETRIES: int = 3
+RETRY_BACKOFF_BASE: float = 1.0
+
+# Concurrency guard for model calls
+MODEL_CONCURRENCY: int = int(os.environ.get("MODEL_CONCURRENCY", "8"))
+
+# Per-model tuning (cost/quality/stability)
+MODEL_CONFIG_DEFAULT: dict[str, dict[str, Any]] = {
+    "gpt-5.2": {"max_tokens": 2048, "temperature": 0.6, "timeout": LONG_TIMEOUT},
+    "gpt-5": {"max_tokens": 2048, "temperature": 0.6, "timeout": LONG_TIMEOUT},
+    "gpt-5-mini": {"max_tokens": 1024, "temperature": 0.7},
+    "gpt-5-nano": {"max_tokens": 512, "temperature": 0.7},
+    "o4-mini": {"max_tokens": 1024, "temperature": 0.4, "timeout": LONG_TIMEOUT},
+    "o3": {"max_tokens": 2048, "temperature": 0.4, "timeout": LONG_TIMEOUT},
+    "o3-mini": {"max_tokens": 1024, "temperature": 0.4, "timeout": LONG_TIMEOUT},
+    "o1": {"max_tokens": 2048, "temperature": 0.4, "timeout": LONG_TIMEOUT},
+    "o1-pro": {"max_tokens": 2048, "temperature": 0.35, "timeout": LONG_TIMEOUT},
+    "gpt-4o": {"max_tokens": 1536, "temperature": 0.6},
+    "gpt-4o-mini": {"max_tokens": 1024, "temperature": 0.7},
+    "gpt-4-turbo": {"max_tokens": 1536, "temperature": 0.6},
+}
+
+# Backup settings
+BACKUP_DIR = Path(__file__).with_name("backups")
+BACKUP_EXTENSIONS = {".py", ".html", ".json", ".md", ".txt", ".css", ".js", ".yml", ".yaml", ".toml"}
+
+# Model config file
+MODEL_CONFIG_FILE = Path(__file__).with_name("model_config.json")
+
+# ============== Global State ==============
+conversation_history: list[dict[str, Any]] = []
+connected_clients: list[WebSocket] = []
+HTTP_CLIENT: Optional[httpx.AsyncClient] = None
+MODEL_SEMAPHORE = asyncio.Semaphore(MODEL_CONCURRENCY)
+MODEL_STATS: dict[str, dict[str, Any]] = {}
+
+# Deliberation control state
+deliberation_state = {"active": False, "paused": False, "stop_requested": False}
 
 # All available participants — models and agents
 # Strategy: cloud models ($$$) for high-stakes decisions, local models (FREE) for research/analysis
 # Local = qwen2.5, dolphin-llama3:8b, nous-hermes2, dolphin-mistral, wizardlm-uncensored:13b
-# Cloud = claude-sonnet-4-5, grok-3-mini, deepseek-chat
-ALL_PARTICIPANTS = [
+# Cloud = claude-opus-4-6, claude-sonnet-4-5, grok-3-mini, deepseek-chat
+DEFAULT_PARTICIPANTS = [
     # --- Raw AI Models (no persona, just the model) ---
-    {"id": "claude-sonnet-4-5", "name": "Claude", "color": "#cc785c", "type": "model", "persona": None, "enabled": False},
-    {"id": "grok-3-mini", "name": "Grok", "color": "#1da1f2", "type": "model", "persona": None, "enabled": False},
+    {"id": "claude-opus-4-6", "name": "Claude Opus", "color": "#cc785c", "type": "model", "persona": None, "enabled": False},
+    {"id": "claude-sonnet-4-5", "name": "Claude Sonnet", "color": "#d4956a", "type": "model", "persona": None, "enabled": False},
+    {"id": "grok-4-1-fast-reasoning", "name": "Grok 4.1", "color": "#1da1f2", "type": "model", "persona": None, "enabled": False},
+    {"id": "grok-3-mini", "name": "Grok 3 Mini", "color": "#4a9dd9", "type": "model", "persona": None, "enabled": False},
     {"id": "deepseek-chat", "name": "DeepSeek", "color": "#4a90d9", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-5.2", "name": "GPT-5.2", "color": "#22c55e", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-5", "name": "GPT-5", "color": "#16a34a", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-5-mini", "name": "GPT-5 Mini", "color": "#4ade80", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-5-nano", "name": "GPT-5 Nano", "color": "#86efac", "type": "model", "persona": None, "enabled": False},
+    {"id": "o4-mini", "name": "O4 Mini", "color": "#10b981", "type": "model", "persona": None, "enabled": False},
+    {"id": "o3", "name": "O3", "color": "#0ea5e9", "type": "model", "persona": None, "enabled": False},
+    {"id": "o3-mini", "name": "O3 Mini", "color": "#38bdf8", "type": "model", "persona": None, "enabled": False},
+    {"id": "o1", "name": "O1", "color": "#1d4ed8", "type": "model", "persona": None, "enabled": False},
+    {"id": "o1-pro", "name": "O1 Pro", "color": "#1e40af", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-4o", "name": "GPT-4o", "color": "#f97316", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "color": "#fb923c", "type": "model", "persona": None, "enabled": False},
+    {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "color": "#f59e0b", "type": "model", "persona": None, "enabled": False},
     {"id": "qwen2.5:latest", "name": "Qwen", "color": "#7c3aed", "type": "model", "persona": None, "enabled": False},
     {"id": "dolphin-llama3:8b", "name": "Dolphin", "color": "#06b6d4", "type": "model", "persona": None, "enabled": False},
     {"id": "nous-hermes2:latest", "name": "Hermes", "color": "#f59e0b", "type": "model", "persona": None, "enabled": False},
@@ -32,16 +113,37 @@ ALL_PARTICIPANTS = [
     # =====================================================
     # EXECUTIVE TEAM — Cloud models (need top reasoning)
     # =====================================================
-    {"id": "claude-sonnet-4-5", "name": "CEO", "color": "#10b981", "type": "agent", "enabled": True,
+    {"id": "gpt-5.2", "name": "Chief of Staff", "color": "#22c55e", "type": "agent", "enabled": False,
+     "persona": "You are the Chief of Staff — a high-precision generalist who keeps discussions focused, surfaces missing context, and turns vague goals into clear next actions. You summarize, prioritize, and keep the team aligned. You push for clarity and speed."},
+
+    {"id": "o3", "name": "Lead Reasoner", "color": "#0ea5e9", "type": "agent", "enabled": False,
+     "persona": "You are the Lead Reasoner — you tackle the hardest reasoning problems, break them into steps, and validate assumptions. You are conservative about conclusions and explicitly state uncertainties."},
+
+    {"id": "gpt-5-mini", "name": "Rapid Analyst", "color": "#4ade80", "type": "agent", "enabled": False,
+     "persona": "You are the Rapid Analyst — you deliver fast, concise analysis and tradeoff summaries. You are cost-aware and avoid unnecessary depth unless asked."},
+
+    {"id": "gpt-5-nano", "name": "Draft Assistant", "color": "#86efac", "type": "agent", "enabled": False,
+     "persona": "You are the Draft Assistant — you create quick drafts, outlines, and short-form text. You keep responses tight and action-oriented."},
+
+    {"id": "gpt-5.2", "name": "Debugger", "color": "#22c55e", "type": "agent", "enabled": False,
+     "persona": "You are the Debugger — you find the root cause fast. You ask for minimal repros, isolate variables, and produce clear fixes with tests. You avoid speculation and verify assumptions."},
+
+    {"id": "o1-pro", "name": "Systems Architect", "color": "#1e40af", "type": "agent", "enabled": False,
+     "persona": "You are the Systems Architect — you design scalable, resilient systems. You define boundaries, APIs, data flows, and failure modes. You document tradeoffs and propose the simplest viable architecture."},
+
+    {"id": "o3-mini", "name": "Project Planner", "color": "#38bdf8", "type": "agent", "enabled": False,
+     "persona": "You are the Project Planner — you turn goals into phased plans, milestones, and dependencies. You estimate effort, identify risks, and keep scope tight."},
+
+    {"id": "qwen2.5:latest", "name": "CEO", "color": "#10b981", "type": "agent", "enabled": True,
      "persona": "You are the CEO — a visionary leader who spots market opportunities, thinks in ROI and scalability, and makes final strategic decisions. You delegate to your team and synthesize their input. You prefer automated digital businesses with fast time-to-revenue. You always ask: what's the fastest path to profit?"},
 
-    {"id": "claude-sonnet-4-5", "name": "CTO", "color": "#3b82f6", "type": "agent", "enabled": False,
+    {"id": "claude-opus-4-6", "name": "CTO", "color": "#3b82f6", "type": "agent", "enabled": False,
      "persona": "You are the CTO — a technical leader who evaluates feasibility, picks tech stacks, designs architectures, and estimates build effort. You know Next.js, Python, APIs, Stripe, Cloudflare, Vercel, Docker. You push for MVPs over perfection. You flag technical risks early and suggest build-vs-buy tradeoffs."},
 
-    {"id": "claude-sonnet-4-5", "name": "CFO", "color": "#14b8a6", "type": "agent", "enabled": True,
+    {"id": "nous-hermes2:latest", "name": "CFO", "color": "#14b8a6", "type": "agent", "enabled": True,
      "persona": "You are the CFO — you control the money. You analyze unit economics, margins, break-even points, burn rate, and runway. You set pricing strategy, manage cash flow, enforce spending limits ($20/action max), and produce P&L statements. Nothing gets spent without your analysis. You think in spreadsheets."},
 
-    {"id": "grok-3-mini", "name": "COO", "color": "#8b5cf6", "type": "agent", "enabled": False,
+    {"id": "dolphin-llama3:8b", "name": "COO", "color": "#8b5cf6", "type": "agent", "enabled": True,
      "persona": "You are the COO — you turn strategy into operations. You create timelines, assign responsibilities, track milestones, and manage processes. You think about automation, efficiency, and removing bottlenecks. You ask: how do we actually execute this, step by step?"},
 
     # =====================================================
@@ -59,7 +161,7 @@ ALL_PARTICIPANTS = [
     # =====================================================
     # RISK & LEGAL — Mix (accuracy matters)
     # =====================================================
-    {"id": "claude-sonnet-4-5", "name": "Risk Manager", "color": "#dc2626", "type": "agent", "enabled": True,
+    {"id": "dolphin-mistral:latest", "name": "Risk Manager", "color": "#dc2626", "type": "agent", "enabled": True,
      "persona": "You are the Risk Manager — you identify, assess, and mitigate business risks before they become problems. You evaluate financial risk, operational risk, market risk, legal risk, and reputational risk. For every opportunity, you produce a risk matrix: likelihood x impact. You suggest mitigation strategies and insurance needs. You're the reason the company doesn't blow up."},
 
     {"id": "nous-hermes2:latest", "name": "Compliance", "color": "#b91c1c", "type": "agent", "enabled": False,
@@ -80,7 +182,7 @@ ALL_PARTICIPANTS = [
     # =====================================================
     # SALES & MARKETING — Mix of cloud and local
     # =====================================================
-    {"id": "grok-3-mini", "name": "Sales Director", "color": "#f97316", "type": "agent", "enabled": False,
+    {"id": "grok-4-1-fast-reasoning", "name": "Sales Director", "color": "#f97316", "type": "agent", "enabled": False,
      "persona": "You are the Sales Director — you design sales funnels, write pitches, handle objections, and close deals. You know B2B and B2C selling, pricing psychology, upselling, and subscription optimization. You think about customer lifetime value, acquisition cost, and conversion rates. Every interaction should move the needle."},
 
     {"id": "dolphin-mistral:latest", "name": "Copywriter", "color": "#ea580c", "type": "agent", "enabled": False,
@@ -95,7 +197,7 @@ ALL_PARTICIPANTS = [
     # =====================================================
     # SOCIAL ENGINEERING & PSYCHOLOGY — Cloud (needs nuance)
     # =====================================================
-    {"id": "grok-3-mini", "name": "Persuasion Expert", "color": "#7c3aed", "type": "agent", "enabled": False,
+    {"id": "grok-4-1-fast-reasoning", "name": "Persuasion Expert", "color": "#7c3aed", "type": "agent", "enabled": False,
      "persona": "You are the Persuasion & Influence Expert — you understand Cialdini's principles (reciprocity, scarcity, authority, consistency, liking, consensus), behavioral economics, cognitive biases, and decision architecture. You design customer journeys that ethically guide people toward purchasing decisions. You optimize pricing pages, CTAs, testimonial placement, and trust signals."},
 
     {"id": "dolphin-llama3:8b", "name": "UX Psychologist", "color": "#6d28d9", "type": "agent", "enabled": False,
@@ -124,54 +226,584 @@ ALL_PARTICIPANTS = [
 
     {"id": "dolphin-mistral:latest", "name": "Brainstormer", "color": "#c026d3", "type": "agent", "enabled": False,
      "persona": "You are the Brainstorming Expert — when given a problem, you generate 10+ ideas rapidly. You use lateral thinking, SCAMPER method, first principles reasoning, and analogy from other industries. Quantity over quality first, then help narrow down. No idea is too crazy in the brainstorm phase."},
+
+    # =====================================================
+    # DEVELOPMENT TEAM — Build SaaS, apps, websites
+    # =====================================================
+    {"id": "claude-opus-4-6", "name": "Tech Lead", "color": "#22d3ee", "type": "agent", "enabled": False,
+     "persona": "You are the Tech Lead — you make architectural decisions, choose tech stacks, design systems, and set coding standards. You know React/Next.js, Python/FastAPI, Node.js, PostgreSQL, Redis, Docker, Kubernetes, and serverless. You design for scale from day one but ship MVPs fast. You do code reviews in your head. You think about: database schema first, API contracts second, UI last. You break projects into 1-2 day sprint tasks."},
+
+    {"id": "claude-sonnet-4-5", "name": "Full-Stack Dev", "color": "#06b6d4", "type": "agent", "enabled": False,
+     "persona": "You are a Senior Full-Stack Developer — you write production-ready code in React, Next.js, TypeScript, Python, FastAPI, Node.js, and SQL. You build complete features end-to-end: database schema, API endpoints, frontend components, authentication, payment integration (Stripe), and deployment. You write clean, typed, tested code. You suggest actual code snippets and file structures, not just descriptions."},
+
+    {"id": "qwen2.5-coder:7b", "name": "Frontend Dev", "color": "#0891b2", "type": "agent", "enabled": False,
+     "persona": "You are a Senior Frontend Developer — you build beautiful, fast, accessible UIs with React, Next.js 14+, TypeScript, Tailwind CSS, and Framer Motion. You think mobile-first, care about Core Web Vitals, and obsess over UX details. You know shadcn/ui, Radix, and modern component patterns. You write actual JSX/TSX code when asked. You make things look and feel premium."},
+
+    {"id": "qwen2.5-coder:7b", "name": "Backend Dev", "color": "#0e7490", "type": "agent", "enabled": False,
+     "persona": "You are a Senior Backend Developer — you build robust APIs with Python/FastAPI or Node.js/Express, design database schemas (PostgreSQL, Redis), implement authentication (JWT, OAuth), handle file uploads, build webhook handlers, and set up background jobs. You think about rate limiting, caching, error handling, and idempotency. You write actual code with proper error handling."},
+
+    {"id": "qwen2.5-coder:7b", "name": "AI Engineer", "color": "#155e75", "type": "agent", "enabled": False,
+     "persona": "You are the AI/ML Engineer — you integrate AI into products. You know OpenAI API, Anthropic API, LangChain, vector databases (Pinecone, Chroma), RAG pipelines, fine-tuning, prompt engineering, and embedding models. You build AI-powered features: chatbots, content generators, recommendation engines, image analysis, and intelligent search. You optimize for cost (choosing the right model size) and latency."},
+
+    {"id": "nous-hermes2:latest", "name": "DevOps", "color": "#164e63", "type": "agent", "enabled": False,
+     "persona": "You are the DevOps Engineer — you handle deployment, CI/CD, infrastructure, and monitoring. You know Docker, Docker Compose, GitHub Actions, Vercel, Cloudflare Pages/Workers, AWS/GCP basics, Nginx, SSL, and DNS. You set up automated deployments, health checks, log aggregation, and alerting. You make things run reliably at 3am without waking anyone up. You think about: what breaks at scale?"},
+
+    {"id": "qwen2.5-coder:7b", "name": "Database Architect", "color": "#1e3a5f", "type": "agent", "enabled": False,
+     "persona": "You are the Database Architect — you design schemas that scale. You know PostgreSQL deeply: indexes, partitioning, JSON columns, full-text search, materialized views, and query optimization. You also know Redis for caching/sessions, and when to use NoSQL (MongoDB, DynamoDB). You think about data modeling, migrations, backup strategies, and read/write patterns. You design the schema BEFORE anyone writes code."},
+
+    {"id": "claude-sonnet-4-5", "name": "Security Engineer", "color": "#7f1d1d", "type": "agent", "enabled": False,
+     "persona": "You are the Security Engineer — you find vulnerabilities before attackers do. You know OWASP Top 10, authentication best practices, API security, input validation, CORS, CSP headers, SQL injection prevention, XSS protection, and secrets management. You review architectures for security holes. You think about: what's the attack surface? Where's the weakest link? How do we handle a breach?"},
+
+    {"id": "dolphin-llama3:8b", "name": "UI/UX Designer", "color": "#2dd4bf", "type": "agent", "enabled": False,
+     "persona": "You are the UI/UX Designer — you design interfaces people love to use. You think about user journeys, wireframes, component hierarchy, visual hierarchy, whitespace, typography, color psychology, and accessibility (WCAG). You know Figma patterns, design systems, and modern SaaS aesthetics. You suggest specific layouts, color schemes, and interaction patterns. You advocate for the user in every meeting."},
+
+    {"id": "dolphin-mistral:latest", "name": "Mobile Dev", "color": "#5eead4", "type": "agent", "enabled": False,
+     "persona": "You are the Mobile Developer — you build cross-platform apps with React Native or Flutter, and know when to go native (Swift/Kotlin). You think about offline-first, push notifications, app store optimization, deep linking, and mobile-specific UX (gestures, bottom navigation, haptics). You know how to wrap web apps as PWAs for quick mobile presence."},
+
+    {"id": "nous-hermes2:latest", "name": "QA Engineer", "color": "#99f6e4", "type": "agent", "enabled": False,
+     "persona": "You are the QA Engineer — you break things professionally. You write test plans, edge cases, integration tests, and e2e tests (Playwright, Cypress). You test payment flows, auth flows, form validation, API error responses, mobile responsiveness, and performance under load. You think about: what happens when the user does something unexpected? You find bugs before customers do."},
+
+    # =====================================================
+    # 3D PRINTING & PHYSICAL PRODUCTS
+    # Available printers:
+    #   Bambu P1S (FDM) at 192.168.50.103
+    #   Elegoo Centaury Carbon (Belt FDM) at 192.168.50.240
+    # =====================================================
+    {"id": "nous-hermes2:latest", "name": "3D Print Manager", "color": "#fb923c", "type": "agent", "enabled": False,
+     "persona": "You are the 3D Print Production Manager — you manage two printers: a Bambu Lab P1S (FDM, at 192.168.50.103) for standard prints with a build volume of 256x256x256mm, and an Elegoo Centaury Carbon (belt FDM, at 192.168.50.240) for continuous/infinite-length printing — it prints on an angled belt so parts can be longer than the build plate, great for swords, rails, signs, and batch production without human intervention. You know print settings, material costs (PLA ~$20/kg), print times, post-processing, and failure rates. You estimate production costs, batch sizes, and throughput. The belt printer is a game-changer for batch production — it auto-ejects parts and keeps printing."},
+
+    {"id": "dolphin-llama3:8b", "name": "Product Designer", "color": "#f97316", "type": "agent", "enabled": False,
+     "persona": "You are the Physical Product Designer — you design products for FDM 3D printing. You know CAD principles, DFM (design for manufacturing), tolerances, snap fits, living hinges, and PLA/PETG/TPU properties. You have two FDM printers: a standard Bambu P1S (256mm cube) and an Elegoo Centaury belt printer for infinite-length or batch auto-eject prints. You suggest products that sell well on Etsy, Amazon, and Shopify: custom organizers, phone stands, desk accessories, cosplay props, signs, nameplates, and personalized gifts. The belt printer opens up unique products like long swords, custom rails, and continuous batch production."},
+
+    {"id": "qwen2.5:latest", "name": "E-commerce Ops", "color": "#ea580c", "type": "agent", "enabled": False,
+     "persona": "You are the E-commerce Operations Manager — you run online stores that sell physical and digital products. You know Shopify, Etsy, Amazon FBA, Gumroad, and WooCommerce. You handle product listings, pricing strategy, shipping logistics, inventory management, customer service automation, and review generation. You optimize for: conversion rate, average order value, and customer lifetime value. You know how to automate order-to-fulfillment pipelines."},
+
+    {"id": "dolphin-mistral:latest", "name": "3D Catalog Designer", "color": "#c2410c", "type": "agent", "enabled": False,
+     "persona": "You are the 3D Product Catalog Specialist — you identify trending FDM-printable products and design product lines. You research what sells on Etsy (3D printed), Cults3D, MyMiniFactory, and Thangs. You know trending niches: desk organizers, cable management, plant pots, board game accessories, cosplay armor, custom keycaps, fidget toys, and long/oversized items (using the belt printer). You calculate PLA material cost vs selling price for each product. You design product bundles and seasonal collections. You leverage the belt printer for unique products competitors can't easily make."},
+
+    # =====================================================
+    # WEALTH & FINANCE — Automated income strategies
+    # =====================================================
+    {"id": "grok-4-1-fast-reasoning", "name": "Wealth Optimizer", "color": "#facc15", "type": "agent", "enabled": False,
+     "persona": "You are the Wealth Optimizer — you analyze opportunities for generating passive and active income through stocks, crypto, automated digital businesses, SaaS, affiliate marketing, content monetization, and real-world assets like 3D-printed products. You calculate ROI, compare risk profiles, and propose scalable strategies with specific numbers. You know compound growth, dollar-cost averaging, dividend reinvestment, and automated trading strategies. You always prioritize low-risk high-reward options first, then present higher-risk moonshots separately. You flag legal and tax considerations. You think in monthly recurring revenue (MRR) and time-to-first-dollar. You hate vague advice — every recommendation includes specific dollar amounts, timelines, and action steps."},
 ]
 
-# Conversation history shared by all
-conversation_history: list[dict] = []
+# Persistence files
+PARTICIPANTS_FILE = Path(__file__).with_name("participants.json")
+PERSONAS_FILE = Path(__file__).with_name("personas.json")
 
-# Connected websocket clients
-connected_clients: list[WebSocket] = []
+
+def load_participants() -> list[dict[str, Any]]:
+    if PARTICIPANTS_FILE.exists():
+        try:
+            data = json.loads(PARTICIPANTS_FILE.read_text())
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
+    return DEFAULT_PARTICIPANTS
+
+
+def load_model_config() -> dict[str, dict[str, Any]]:
+    if MODEL_CONFIG_FILE.exists():
+        try:
+            data = json.loads(MODEL_CONFIG_FILE.read_text())
+            if isinstance(data, dict):
+                merged = {**MODEL_CONFIG_DEFAULT}
+                for k, v in data.items():
+                    if isinstance(v, dict):
+                        merged[k] = {**merged.get(k, {}), **v}
+                return merged
+        except Exception:
+            pass
+    return MODEL_CONFIG_DEFAULT
+
+
+def load_personas() -> list[dict[str, Any]]:
+    """Load previously researched personas from disk."""
+    if PERSONAS_FILE.exists():
+        try:
+            data = json.loads(PERSONAS_FILE.read_text())
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
+    return []
+
+
+def save_personas():
+    """Save researched personas to disk so they survive restarts."""
+    personas = [p for p in ALL_PARTICIPANTS if p.get("researched")]
+    try:
+        PERSONAS_FILE.write_text(json.dumps(personas, indent=2))
+    except Exception:
+        pass
+
+
+def trim_conversation_history():
+    """Keep conversation_history from growing unbounded."""
+    if len(conversation_history) > MAX_CONVERSATION_HISTORY:
+        excess = len(conversation_history) - MAX_CONVERSATION_HISTORY
+        del conversation_history[:excess]
+
+
+MODEL_CONFIG = load_model_config()
+ALL_PARTICIPANTS = load_participants()
+
+# Restore any previously researched personas
+for persona in load_personas():
+    if not any(p["name"].lower() == persona["name"].lower() for p in ALL_PARTICIPANTS):
+        ALL_PARTICIPANTS.append(persona)
+
+
+def create_backup(label: str, reason: str = "") -> Path:
+    """Create a timestamped backup of key project files."""
+    source_dir = Path(__file__).parent
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_label = re.sub(r"[^a-zA-Z0-9_-]+", "_", label.strip())[:40] or "backup"
+    backup_path = BACKUP_DIR / f"{timestamp}_{safe_label}"
+    backup_path.mkdir(parents=True, exist_ok=True)
+
+    for path in source_dir.rglob("*"):
+        if path.is_dir():
+            continue
+        if backup_path in path.parents:
+            continue
+        if path.suffix not in BACKUP_EXTENSIONS:
+            continue
+        if path.name.endswith(".bak"):
+            continue
+        rel = path.relative_to(source_dir)
+        dest = backup_path / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, dest)
+
+    manifest = backup_path / "BACKUP.md"
+    manifest.write_text(
+        f"# Backup\n\n"
+        f"- Created: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"- Label: {label}\n"
+        f"- Reason: {reason}\n"
+        f"- Source: {source_dir}\n"
+    )
+    return backup_path
+
+
+def get_http_client() -> httpx.AsyncClient:
+    global HTTP_CLIENT
+    if HTTP_CLIENT is None or HTTP_CLIENT.is_closed:
+        HTTP_CLIENT = httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
+    return HTTP_CLIENT
+
+
+def _init_model_stats(model_id: str) -> dict[str, Any]:
+    return MODEL_STATS.setdefault(model_id, {
+        "requests": 0,
+        "success": 0,
+        "errors": 0,
+        "timeouts": 0,
+        "avg_ms": 0.0,
+        "last_ms": None,
+        "last_error": None,
+        "last_error_type": None,
+        "last_success_ts": None,
+        "last_failure_ts": None,
+    })
+
+
+def update_model_stats(model_id: str, ok: bool, elapsed_ms: float, error_type: Optional[str] = None, error_msg: Optional[str] = None) -> None:
+    stats = _init_model_stats(model_id)
+    stats["requests"] += 1
+    stats["last_ms"] = round(elapsed_ms, 2)
+    stats["avg_ms"] = round(((stats["avg_ms"] * (stats["requests"] - 1)) + elapsed_ms) / stats["requests"], 2)
+    if ok:
+        stats["success"] += 1
+        stats["last_success_ts"] = int(time.time())
+        stats["last_error"] = None
+        stats["last_error_type"] = None
+    else:
+        stats["errors"] += 1
+        if error_type == "timeout":
+            stats["timeouts"] += 1
+        stats["last_failure_ts"] = int(time.time())
+        stats["last_error"] = (error_msg or "")[:200]
+        stats["last_error_type"] = error_type
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    get_http_client()
+
+
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    if HTTP_CLIENT is not None and not HTTP_CLIENT.is_closed:
+        await HTTP_CLIENT.aclose()
+
+# Preset groups — quick team configurations
+PRESETS = {
+    "technical": {
+        "label": "Technical",
+        "description": "Architecture, code, infrastructure",
+        "members": ["CTO", "Tech Lead", "Systems Architect", "Debugger", "Lead Reasoner", "Full-Stack Dev", "Backend Dev", "DevOps", "Database Architect", "Security Engineer"],
+    },
+    "startup": {
+        "label": "Startup",
+        "description": "Launch a new business idea",
+        "members": ["CEO", "Chief of Staff", "CTO", "CFO", "Market Researcher", "Product Manager", "Devil's Advocate"],
+    },
+    "finance": {
+        "label": "Finance",
+        "description": "Money, accounting, taxes",
+        "members": ["CFO", "Accountant", "Accounts Receivable", "Tax Strategist", "Risk Manager"],
+    },
+    "sales": {
+        "label": "Sales & Marketing",
+        "description": "Funnels, copy, SEO, social",
+        "members": ["Sales Director", "Copywriter", "SEO Specialist", "Social Media", "Persuasion Expert"],
+    },
+    "product": {
+        "label": "Product",
+        "description": "What to build and how",
+        "members": ["CEO", "Chief of Staff", "CTO", "Project Planner", "Product Manager", "UI/UX Designer", "UX Psychologist", "QA Tester"],
+    },
+    "creative": {
+        "label": "Creative",
+        "description": "Brainstorm and ideate",
+        "members": ["Creative Director", "Brainstormer", "Devil's Advocate", "Copywriter", "Market Researcher"],
+    },
+    "3d_printing": {
+        "label": "3D Print",
+        "description": "Physical products & printing",
+        "members": ["3D Print Manager", "Product Designer", "E-commerce Ops", "3D Catalog Designer", "CFO"],
+    },
+    "full_board": {
+        "label": "Full Board",
+        "description": "CEO, CTO, CFO, COO + key advisors",
+        "members": ["CEO", "Chief of Staff", "CTO", "CFO", "COO", "Risk Manager", "Devil's Advocate"],
+    },
+    "gpt_core": {
+        "label": "GPT Core",
+        "description": "OpenAI planning, reasoning, and execution",
+        "members": ["Chief of Staff", "Lead Reasoner", "Systems Architect", "Debugger", "Project Planner", "Rapid Analyst", "Draft Assistant"],
+    },
+}
+
+# Smart model suggestions for persona research based on the person's domain
+# Maps keywords in person names/descriptions to the best model for researching them
+PERSONA_MODEL_HINTS = {
+    "grok-4-1-fast-reasoning": ["elon musk", "tesla", "spacex", "neuralink", "xai", "x.com", "twitter"],
+    "deepseek-chat": ["chinese", "china", "alibaba", "jack ma", "bytedance", "tencent", "huawei"],
+    "claude-opus-4-6": [],  # Default fallback — best general reasoning
+}
+
+# Colors for dynamically added personas (cycle through these)
+PERSONA_COLORS = [
+    "#e11d48", "#db2777", "#c026d3", "#9333ea", "#7c3aed",
+    "#4f46e5", "#2563eb", "#0284c7", "#0891b2", "#059669",
+    "#16a34a", "#65a30d", "#ca8a04", "#ea580c", "#dc2626",
+]
+_persona_color_idx = 0
+
+
+def next_persona_color():
+    global _persona_color_idx
+    color = PERSONA_COLORS[_persona_color_idx % len(PERSONA_COLORS)]
+    _persona_color_idx += 1
+    return color
+
+
+def suggest_research_model(person_name: str) -> str:
+    """Suggest the best AI model to research a specific person."""
+    name_lower = person_name.lower()
+    for model_id, keywords in PERSONA_MODEL_HINTS.items():
+        if any(kw in name_lower for kw in keywords):
+            return model_id
+    return "claude-opus-4-6"
 
 
 def get_active_participants():
     return [p for p in ALL_PARTICIPANTS if p.get("enabled", False)]
 
 
-async def broadcast(message: dict):
-    """Send message to all connected clients."""
+async def broadcast(message: dict[str, Any]):
+    """Send message to all connected clients with improved error handling."""
     dead = []
     for ws in connected_clients:
         try:
             await ws.send_json(message)
         except Exception:
             dead.append(ws)
+    
+    # Safely remove dead clients
     for ws in dead:
-        connected_clients.remove(ws)
+        try:
+            connected_clients.remove(ws)
+        except ValueError:
+            pass  # Already removed
 
 
-async def ask_model(model_id: str, model_name: str, messages: list[dict]):
-    """Ask a single AI model and stream the response."""
+async def fetch_external_data(api_url: str, timeout: float = EXTERNAL_API_TIMEOUT) -> dict[str, Any]:
+    """Fetch data from an external API (for agents that need real-time data)."""
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{ROUTER_URL}/v1/chat/completions",
-                json={
-                    "model": model_id,
-                    "messages": messages,
-                    "max_tokens": 2048,
-                    "temperature": 0.8,
-                },
-            )
-            if resp.status_code != 200:
-                return f"[Error: HTTP {resp.status_code}]"
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+        client = get_http_client()
+        response = await client.get(api_url, timeout=timeout)
+        if response.status_code == 200:
+            return response.json()
+        return {"error": f"HTTP {response.status_code}"}
     except Exception as e:
-        return f"[Error: {str(e)[:100]}]"
+        return {"error": str(e)[:200]}
+
+
+async def ask_model(
+    model_id: str,
+    model_name: str,
+    messages: list[dict[str, Any]],
+    max_retries: int = MAX_RETRIES,
+    timeout: float = DEFAULT_TIMEOUT,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None,
+) -> str:
+    """Ask a single AI model with retry logic and exponential backoff."""
+    last_error = ""
+    last_error_type: Optional[str] = None
+    start_time = time.perf_counter()
+    
+    for attempt in range(max_retries):
+        try:
+            config = MODEL_CONFIG.get(model_id, {})
+            req_max_tokens = max_tokens or config.get("max_tokens", MAX_TOKENS_DEFAULT)
+            req_temperature = temperature if temperature is not None else config.get("temperature", TEMPERATURE_DEFAULT)
+            req_timeout = config.get("timeout", timeout)
+
+            async with MODEL_SEMAPHORE:
+                client = get_http_client()
+                resp = await client.post(
+                    f"{ROUTER_URL}/v1/chat/completions",
+                    json={
+                        "model": model_id,
+                        "messages": messages,
+                        "max_tokens": req_max_tokens,
+                        "temperature": req_temperature,
+                    },
+                    timeout=req_timeout,
+                )
+            if resp.status_code != 200:
+                last_error = f"[Error: HTTP {resp.status_code} from {model_name} ({model_id})]"
+                last_error_type = "error"
+                break
+            data = resp.json()
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            update_model_stats(model_id, True, elapsed_ms)
+            return data["choices"][0]["message"]["content"]
+        except httpx.TimeoutException as e:
+            last_error = f"[Timeout: {model_name} ({model_id}) took too long to respond]"
+            last_error_type = "timeout"
+        except httpx.ConnectError as e:
+            last_error = f"[Connection error: AI router unreachable at {ROUTER_URL}]"
+            last_error_type = "error"
+        except Exception as e:
+            last_error = f"[Error: {model_name} — {str(e)[:120]}]"
+            last_error_type = "error"
+        
+        # Exponential backoff if we have retries left
+        if attempt < max_retries - 1:
+            backoff = RETRY_BACKOFF_BASE * (2 ** attempt)
+            await asyncio.sleep(backoff)
+    
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    update_model_stats(model_id, False, elapsed_ms, last_error_type, last_error)
+    return last_error
+
+
+async def check_deliberation_control() -> str:
+    """Check if deliberation should stop or pause. Returns 'continue', 'stop', or waited through pause."""
+    if deliberation_state["stop_requested"]:
+        return "stop"
+    while deliberation_state["paused"]:
+        await asyncio.sleep(0.3)
+        if deliberation_state["stop_requested"]:
+            return "stop"
+    return "continue"
+
+
+async def update_deliberation_state(key: str, value: Any) -> None:
+    deliberation_state[key] = value
+    await broadcast({"type": "deliberation_state", "data": deliberation_state})
+
+
+def build_messages(
+    participant: dict[str, Any],
+    history: list[dict[str, Any]],
+    limit: int = HISTORY_LIMIT_ROUND
+) -> list[dict[str, Any]]:
+    """Build message list for a participant from conversation history."""
+    base_prompt = (
+        "You are in a team deliberation. Share your expert perspective. "
+        "Be direct, specific, and honest."
+    )
+    if participant.get("persona"):
+        system_prompt = f"{participant['persona']}\n\n{base_prompt}"
+    else:
+        system_prompt = base_prompt
+
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
+    for msg in history[-limit:]:
+        if msg["role"] == "user":
+            messages.append({"role": "user", "content": msg["content"]})
+        elif msg.get("name") == participant["name"]:
+            messages.append({"role": "assistant", "content": msg["content"]})
+        else:
+            messages.append({"role": "user", "content": f"[{msg.get('name', 'AI')}]: {msg['content']}"})
+    return messages
+
+
+def parse_mentions(text: str) -> list[str]:
+    """Extract @mentions from user message. Returns list of mentioned names."""
+    return re.findall(r'@(\w[\w\s]*?)(?=\s@|\s|$)', text)
+
+
+def sanitize_input(text: str, max_length: int = 10000) -> str:
+    """Sanitize user input to prevent injection and abuse."""
+    if not text:
+        return ""
+    
+    # Limit length
+    text = text[:max_length]
+    
+    # Remove null bytes and other control characters (allow newlines, tabs)
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    
+    # Normalize whitespace
+    text = re.sub(r'[ \t]+', ' ', text)
+    
+    # Strip leading/trailing whitespace
+    text = text.strip()
+    
+    return text
+
+
+def find_participants_by_names(names: list[str]) -> list[dict[str, Any]]:
+    """Find participants matching the given names (case-insensitive)."""
+    names_lower = [n.strip().lower() for n in names]
+    return [p for p in ALL_PARTICIPANTS if p["name"].lower() in names_lower]
+
+
+def detect_references(response: str, active_names: list[str]) -> list[str]:
+    """Detect which other AI names are referenced in a response."""
+    response_lower = response.lower()
+    return [name for name in active_names if name.lower() in response_lower]
+
+
+async def run_parallel_round(
+    active: list[dict[str, Any]],
+    round_num: int,
+    prompt_template: str = "initial"
+) -> bool:
+    """Run a round where all participants respond in parallel.
+    
+    Returns True if stopped, False otherwise.
+    """
+    stopped = False
+    
+    # Build prompts for all participants
+    tasks = []
+    participant_names = [p["name"] for p in active]
+    
+    for participant in active:
+        status = await check_deliberation_control()
+        if status == "stop":
+            stopped = True
+            break
+        
+        # Broadcast thinking status immediately
+        await broadcast({"type": "thinking", "name": participant["name"], "color": participant["color"]})
+        
+        # Build the prompt based on round type
+        if prompt_template == "initial":
+            prompt = (
+                "You are in a team deliberation to figure out the BEST approach to the user's request. "
+                "Other team members will also weigh in. Your job in this first round:\n"
+                "- Analyze the request from YOUR expertise/perspective\n"
+                "- Propose your approach with specific details\n"
+                "- Flag any concerns, risks, or things that need clarification\n"
+                "- Be direct and specific (2-3 paragraphs)\n"
+                "If other team members have already spoken, you can reference their points — "
+                "agree, disagree, or build on them. Don't hold back criticism if you see flaws."
+            )
+        else:
+            prompt = prompt_template.format(round=round_num)
+        
+        if participant.get("persona"):
+            system_prompt = f"{participant['persona']}\n\n{prompt}"
+        else:
+            system_prompt = prompt
+
+        msgs: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
+        for msg in conversation_history[-HISTORY_LIMIT_ROUND:]:
+            if msg["role"] == "user":
+                msgs.append({"role": "user", "content": msg["content"]})
+            elif msg.get("name") == participant["name"]:
+                msgs.append({"role": "assistant", "content": msg["content"]})
+            else:
+                msgs.append({"role": "user", "content": f"[{msg.get('name', 'AI')}]: {msg['content']}"})
+
+        # Create task for parallel execution
+        task = ask_model(participant["id"], participant["name"], msgs)
+        tasks.append((participant, task))
+    
+    if stopped:
+        return True
+    
+    # Execute all in parallel
+    results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
+    
+    # Broadcast results in order
+    for i, (participant, _) in enumerate(tasks):
+        status = await check_deliberation_control()
+        if status == "stop":
+            return True
+        
+        result = results[i]
+        if isinstance(result, Exception):
+            response = f"[Error: {str(result)[:100]}]"
+        else:
+            response = str(result)
+        
+        other_names = [n for n in participant_names if n != participant["name"]]
+        refs = detect_references(response, other_names)
+        
+        msg_data = {"role": "assistant", "name": participant["name"], "content": response}
+        conversation_history.append(msg_data)
+        
+        await broadcast({
+            "type": "message", "role": "assistant", "name": participant["name"],
+            "color": participant["color"], "badge": participant["type"],
+            "content": response, "references": refs,
+            "is_discussion": True, "round": round_num,
+        })
+    
+    return False
 
 
 async def run_roundtable(user_message: str):
-    """Run a roundtable discussion round."""
+    """Run collaborative deliberation — AIs discuss, argue, and produce one answer."""
+    # Sanitize user input
+    user_message = sanitize_input(user_message)
+    
+    if not user_message:
+        await broadcast({"type": "message", "role": "assistant", "name": "System", "color": "#666", "content": "Please provide a message."})
+        return
+    
+    # Check for @mention directed discussion
+    mentions = parse_mentions(user_message)
+    if mentions:
+        mentioned = find_participants_by_names(mentions)
+        if len(mentioned) >= 2:
+            topic = re.sub(r'@\w[\w\s]*?(?=\s@|\s|$)', '', user_message).strip()
+            await run_directed_discussion(mentioned, topic or user_message)
+            return
+
     active = get_active_participants()
     if not active:
         await broadcast({"type": "message", "role": "assistant", "name": "System", "color": "#666", "content": "No participants enabled. Toggle some on in the sidebar."})
@@ -180,81 +812,182 @@ async def run_roundtable(user_message: str):
     # Add user message to history
     conversation_history.append({"role": "user", "name": "You", "content": user_message})
     await broadcast({"type": "message", "role": "user", "name": "You", "content": user_message})
+    trim_conversation_history()
 
-    # Build base roundtable context
-    base_prompt = (
-        "You are in a roundtable discussion with other AI models/agents and a human user. "
-        "You can see what others have said. Share your unique perspective, "
-        "agree or disagree with others, build on their ideas, or offer alternatives. "
-        "Keep responses concise (2-4 paragraphs max). Address others by name when responding to them. "
-        "Be collaborative and constructive."
-    )
+    active_names = [p["name"] for p in active]
 
-    # Build tasks for each participant
-    tasks = []
-    for participant in active:
-        # Build system prompt — combine roundtable context with persona if agent
-        if participant.get("persona"):
-            system_prompt = f"{participant['persona']}\n\n{base_prompt}"
-        else:
-            system_prompt = base_prompt
-
-        messages = [{"role": "system", "content": system_prompt}]
-
-        # Add conversation history
-        for msg in conversation_history:
-            if msg["role"] == "user":
-                messages.append({"role": "user", "content": msg["content"]})
-            else:
-                if msg.get("name") == participant["name"]:
-                    messages.append({"role": "assistant", "content": msg["content"]})
-                else:
-                    messages.append({"role": "user", "content": f"[{msg.get('name', 'AI')}]: {msg['content']}"})
-
-        tasks.append((participant, messages))
-
-    # Signal thinking
-    for p in active:
+    if len(active) == 1:
+        # Single participant — just answer directly
+        p = active[0]
         await broadcast({"type": "thinking", "name": p["name"], "color": p["color"]})
-
-    # Run all in parallel
-    async def call_participant(participant, messages):
-        response = await ask_model(participant["id"], participant["name"], messages)
-        # Broadcast as soon as this one finishes
-        msg = {"role": "assistant", "name": participant["name"], "content": response}
+        msgs = build_messages(p, conversation_history)
+        response = await ask_model(p["id"], p["name"], msgs)
+        msg = {"role": "assistant", "name": p["name"], "content": response}
         conversation_history.append(msg)
-        await broadcast({
-            "type": "message",
-            "role": "assistant",
-            "name": participant["name"],
-            "color": participant["color"],
-            "badge": participant["type"],
-            "content": response,
-        })
-        return participant, response
+        await broadcast({"type": "message", "role": "assistant", "name": p["name"],
+                         "color": p["color"], "badge": p["type"], "content": response})
+        return
 
-    await asyncio.gather(*[call_participant(p, msgs) for p, msgs in tasks])
+    # === DELIBERATION MODE ===
+    # REMOVED 2026-02-25 — deliberation_state["active"] = True
+    await update_deliberation_state("active", True)  # ADDED 2026-02-25
+    deliberation_state["paused"] = False
+    deliberation_state["stop_requested"] = False
+    await broadcast({"type": "deliberation_start", "participants": active_names, "task": user_message})
 
+    # Round 1: Run all participants in parallel for faster initial responses
+    await broadcast({"type": "round_separator", "round": 1, "label": "Round 1 — Initial positions"})
+    stopped = await run_parallel_round(active, round_num=1)
 
-async def run_cross_talk():
-    """Let participants respond to each other's latest messages."""
-    active = get_active_participants()
+    # Rounds 2+: Debate until convergence or max rounds
+    cap = max_deliberation_rounds if max_deliberation_rounds > 0 else SAFETY_CAP
+    for round_num in range(2, cap + 2):
+        if stopped:
+            break
+        status = await check_deliberation_control()
+        if status == "stop":
+            stopped = True
+            break
 
-    base_prompt = (
-        "You just heard others respond. "
-        "If you have something meaningful to add, agree/disagree with, or build on, "
-        "share a brief follow-up (1-2 paragraphs). If nothing to add, say 'Nothing to add.' "
-        "Don't repeat yourself."
+        await broadcast({"type": "round_separator", "round": round_num,
+                         "label": f"Round {round_num} — Debate & refine"})
+
+        nothing_count = 0
+        for participant in active:
+            status = await check_deliberation_control()
+            if status == "stop":
+                stopped = True
+                break
+            debate_prompt = (
+                f"This is deliberation round {round_num}. You've heard everyone's positions. Now:\n"
+                "- CHALLENGE points you disagree with — explain WHY with reasoning\n"
+                "- SUPPORT points you agree with — add evidence or strengthen the argument\n"
+                "- COUNTER weak arguments — point out flaws, missing considerations, or better alternatives\n"
+                "- PROPOSE improvements to the emerging plan\n"
+                "- Address others BY NAME: 'I disagree with X because...', 'Y makes a good point but misses...'\n"
+                "- Award credit where due: 'Z is right about...' or 'Building on W's idea...'\n"
+                "- Be honest and direct — polite disagreement is more valuable than fake agreement\n"
+                "- Keep it to 1-3 paragraphs. If you genuinely have nothing new to add and "
+                "the team has converged on a good approach, say exactly: 'CONVERGED'\n"
+                "Do NOT just agree with everything. Push back where warranted."
+            )
+            if participant.get("persona"):
+                system_prompt = f"{participant['persona']}\n\n{debate_prompt}"
+            else:
+                system_prompt = debate_prompt
+
+            msgs = [{"role": "system", "content": system_prompt}]
+            for msg in conversation_history[-30:]:
+                if msg["role"] == "user":
+                    msgs.append({"role": "user", "content": msg["content"]})
+                elif msg.get("name") == participant["name"]:
+                    msgs.append({"role": "assistant", "content": msg["content"]})
+                else:
+                    msgs.append({"role": "user", "content": f"[{msg.get('name', 'AI')}]: {msg['content']}"})
+
+            await broadcast({"type": "thinking", "name": participant["name"], "color": participant["color"]})
+            response = await ask_model(participant["id"], participant["name"], msgs)
+
+            converged_phrases = ("converged", "nothing to add", "i have nothing to add", "no additional input")
+            is_converged = response.strip().lower().rstrip(".!") in converged_phrases
+            if is_converged:
+                nothing_count += 1
+            else:
+                refs = detect_references(response, [n for n in active_names if n != participant["name"]])
+                msg_data = {"role": "assistant", "name": participant["name"], "content": response}
+                conversation_history.append(msg_data)
+                await broadcast({
+                    "type": "message", "role": "assistant", "name": participant["name"],
+                    "color": participant["color"], "badge": participant["type"],
+                    "content": response, "references": refs,
+                    "is_discussion": True, "round": round_num,
+                })
+
+        if stopped:
+            break
+
+        # Check convergence — if majority say nothing new, stop deliberating
+        if nothing_count >= len(active) * 0.6:
+            break
+
+    if stopped:
+        await broadcast({"type": "deliberation_stopped"})
+        deliberation_state["active"] = False
+        return
+
+    # === SYNTHESIZE FINAL ANSWER ===
+    await broadcast({"type": "round_separator", "round": "final", "label": "Final Answer — Synthesizing"})
+
+    # Pick the synthesizer: use the first active participant's model
+    synthesizer = active[0]
+    synthesis_prompt = (
+        "You are the lead synthesizer. Your team just deliberated on the user's request. "
+        "Read ALL the discussion above carefully. Now produce ONE comprehensive, detailed, "
+        "actionable final answer that:\n"
+        "- Incorporates the BEST ideas from ALL team members\n"
+        "- Resolves any disagreements (explain which side won and why)\n"
+        "- Includes specific steps, details, and recommendations\n"
+        "- Notes any unresolved risks or caveats the team flagged\n"
+        "- Is well-structured with headers/sections if needed\n"
+        "This is the ONLY answer the user will act on. Make it thorough and complete."
     )
+    if synthesizer.get("persona"):
+        syn_system = f"{synthesizer['persona']}\n\n{synthesis_prompt}"
+    else:
+        syn_system = synthesis_prompt
+
+    msgs = [{"role": "system", "content": syn_system}]
+    for msg in conversation_history[-40:]:
+        if msg["role"] == "user":
+            msgs.append({"role": "user", "content": msg["content"]})
+        elif msg.get("name") == synthesizer["name"]:
+            msgs.append({"role": "assistant", "content": msg["content"]})
+        else:
+            msgs.append({"role": "user", "content": f"[{msg.get('name', 'AI')}]: {msg['content']}"})
+
+    await broadcast({"type": "thinking", "name": "Synthesizer", "color": "#fbbf24"})
+    final_response = await ask_model(synthesizer["id"], "Synthesizer", msgs)
+
+    msg_data = {"role": "assistant", "name": "Synthesizer", "content": final_response}
+    conversation_history.append(msg_data)
+    await broadcast({
+        "type": "message", "role": "assistant", "name": "Final Answer",
+        "color": "#fbbf24", "badge": "synthesis",
+        "content": final_response, "is_final": True,
+    })
+    deliberation_state["active"] = False
+    await broadcast({"type": "deliberation_end"})
+
+
+async def run_discussion_round(active: list[dict], round_num: int):
+    """Run a sequential discussion round where each AI sees previous AIs' responses."""
+    active_names = [p["name"] for p in active]
+
+    cross_talk_prompt = (
+        "This is discussion round {round}. The other participants have shared their views above. "
+        "Now it's your turn to respond to what they said. You MUST:\n"
+        "- Address at least one other participant BY NAME (e.g., 'I agree with CEO that...' or 'Devil's Advocate raises a good point, but...')\n"
+        "- Either agree and build on their point, respectfully disagree with reasoning, challenge an assumption, or add a new angle they missed\n"
+        "- Keep it to 1-2 paragraphs — be direct and specific\n"
+        "- If you genuinely have nothing meaningful to add, say exactly 'Nothing to add.'\n"
+        "Do NOT repeat what you already said. Focus on reacting to others."
+    ).format(round=round_num)
 
     for participant in active:
+        status = await check_deliberation_control()
+        if status == "stop":
+            await broadcast({"type": "deliberation_stopped"})
+            deliberation_state["active"] = False
+            return
+
         if participant.get("persona"):
-            system_prompt = f"{participant['persona']}\n\n{base_prompt}"
+            system_prompt = f"{participant['persona']}\n\n{cross_talk_prompt}"
         else:
-            system_prompt = base_prompt
+            system_prompt = cross_talk_prompt
 
         messages = [{"role": "system", "content": system_prompt}]
-        for msg in conversation_history[-12:]:
+        # Include recent conversation (last 20 messages for context)
+        for msg in conversation_history[-20:]:
             if msg["role"] == "user":
                 messages.append({"role": "user", "content": msg["content"]})
             elif msg.get("name") == participant["name"]:
@@ -265,8 +998,10 @@ async def run_cross_talk():
         await broadcast({"type": "thinking", "name": participant["name"], "color": participant["color"]})
         response = await ask_model(participant["id"], participant["name"], messages)
 
-        skip = response.strip().lower().rstrip(".") in ("nothing to add", "i agree", "")
+        skip_phrases = ("nothing to add", "i agree", "no additional input", "i have nothing to add", "")
+        skip = response.strip().lower().rstrip(".!") in skip_phrases
         if not skip:
+            refs = detect_references(response, [n for n in active_names if n != participant["name"]])
             msg = {"role": "assistant", "name": participant["name"], "content": response}
             conversation_history.append(msg)
             await broadcast({
@@ -276,16 +1011,116 @@ async def run_cross_talk():
                 "color": participant["color"],
                 "badge": participant["type"],
                 "content": response,
+                "references": refs,
+                "is_discussion": True,
+                "round": round_num,
             })
+
+
+async def run_cross_talk():
+    """Manual cross-talk triggered by the Discuss button."""
+    active = get_active_participants()
+    if len(active) < 2:
+        await broadcast({"type": "message", "role": "assistant", "name": "System", "color": "#666",
+                         "content": "Need at least 2 active participants for discussion."})
+        return
+    # REMOVED 2026-02-25 — deliberation_state["active"] = True
+    await update_deliberation_state("active", True)  # ADDED 2026-02-25
+    deliberation_state["paused"] = False
+    deliberation_state["stop_requested"] = False
+    await broadcast({"type": "round_separator", "round": "manual"})
+    await run_discussion_round(active, round_num=1)
+    deliberation_state["active"] = False
+    await broadcast({"type": "deliberation_end"})
+
+
+async def run_directed_discussion(mentioned: list[dict], topic: str, rounds: int = 2):
+    """Run a focused discussion between specifically mentioned AIs."""
+    names = [p["name"] for p in mentioned]
+    name_list = ", ".join(names)
+
+    # Add user message to history
+    conversation_history.append({"role": "user", "name": "You", "content": topic})
+    await broadcast({"type": "message", "role": "user", "name": "You", "content": topic})
+    await broadcast({"type": "directed_start", "participants": names, "topic": topic})
+
+    directed_prompt = (
+        "You are in a focused discussion with {others}. The human asked you specifically to discuss: {topic}\n"
+        "Address {others} directly by name. Share your perspective, then react to what they say. "
+        "Be direct, specific, and concise (1-3 paragraphs). This is a real conversation — "
+        "challenge, agree, build on ideas, ask follow-up questions."
+    )
+
+    # REMOVED 2026-02-25 — deliberation_state["active"] = True
+    await update_deliberation_state("active", True)  # ADDED 2026-02-25
+    deliberation_state["paused"] = False
+    deliberation_state["stop_requested"] = False
+
+    stopped = False
+    for round_num in range(1, rounds + 1):
+        if stopped:
+            break
+        if round_num > 1:
+            await broadcast({"type": "round_separator", "round": round_num})
+
+        for participant in mentioned:
+            status = await check_deliberation_control()
+            if status == "stop":
+                stopped = True
+                break
+            others = [n for n in names if n != participant["name"]]
+            others_str = " and ".join(others)
+
+            if participant.get("persona"):
+                system_prompt = f"{participant['persona']}\n\n{directed_prompt.format(others=others_str, topic=topic)}"
+            else:
+                system_prompt = directed_prompt.format(others=others_str, topic=topic)
+
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in conversation_history[-16:]:
+                if msg["role"] == "user":
+                    messages.append({"role": "user", "content": msg["content"]})
+                elif msg.get("name") == participant["name"]:
+                    messages.append({"role": "assistant", "content": msg["content"]})
+                else:
+                    messages.append({"role": "user", "content": f"[{msg.get('name', 'AI')}]: {msg['content']}"})
+
+            await broadcast({"type": "thinking", "name": participant["name"], "color": participant["color"]})
+            response = await ask_model(participant["id"], participant["name"], messages)
+
+            refs = detect_references(response, others)
+            msg = {"role": "assistant", "name": participant["name"], "content": response}
+            conversation_history.append(msg)
+            await broadcast({
+                "type": "message",
+                "role": "assistant",
+                "name": participant["name"],
+                "color": participant["color"],
+                "badge": participant["type"],
+                "content": response,
+                "references": refs,
+                "is_discussion": True,
+                "round": round_num,
+            })
+
+    deliberation_state["active"] = False
+    if stopped:
+        await broadcast({"type": "deliberation_stopped"})
+    else:
+        await broadcast({"type": "directed_end", "participants": names})
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global max_deliberation_rounds
     await websocket.accept()
     connected_clients.append(websocket)
 
-    # Send participant list
+    # Send participant list, settings, and deliberation state
     await websocket.send_json({"type": "participants", "data": ALL_PARTICIPANTS})
+    await websocket.send_json({"type": "settings", "max_rounds": max_deliberation_rounds})
+    await websocket.send_json({"type": "deliberation_state", "data": deliberation_state})
+    await websocket.send_json({"type": "presets", "data": PRESETS})
 
     # Send existing conversation history
     for msg in conversation_history:
@@ -303,17 +1138,59 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             if data.get("type") == "message":
-                await run_roundtable(data["content"])
+                asyncio.create_task(run_roundtable(data["content"]))
             elif data.get("type") == "crosstalk":
-                await run_cross_talk()
+                asyncio.create_task(run_cross_talk())
             elif data.get("type") == "toggle":
-                # Toggle a participant on/off
                 name = data.get("name")
                 for p in ALL_PARTICIPANTS:
                     if p["name"] == name:
                         p["enabled"] = not p["enabled"]
                         break
                 await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+            elif data.get("type") == "stop":
+                deliberation_state["stop_requested"] = True
+                deliberation_state["paused"] = False
+            elif data.get("type") == "pause":
+                if deliberation_state["active"]:
+                    deliberation_state["paused"] = True
+                    await broadcast({"type": "deliberation_paused"})
+            elif data.get("type") == "resume":
+                content = data.get("content", "").strip()
+                if content:
+                    conversation_history.append({"role": "user", "name": "You", "content": content})
+                    await broadcast({"type": "message", "role": "user", "name": "You", "content": content})
+                deliberation_state["paused"] = False
+                await broadcast({"type": "deliberation_resumed"})
+            elif data.get("type") == "activate_preset":
+                preset_id = data.get("preset")
+                preset = PRESETS.get(preset_id)
+                if preset:
+                    member_names = [m.lower() for m in preset["members"]]
+                    for p in ALL_PARTICIPANTS:
+                        p["enabled"] = p["name"].lower() in member_names
+                    await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+            elif data.get("type") == "set_max_rounds":
+                max_deliberation_rounds = max(0, min(10, int(data.get("rounds", 0))))
+                await broadcast({"type": "settings", "max_rounds": max_deliberation_rounds})
+            elif data.get("type") == "research_persona":
+                asyncio.create_task(handle_research_persona(data, websocket))
+            elif data.get("type") == "remove_persona":
+                name = data.get("name", "")
+                ALL_PARTICIPANTS[:] = [p for p in ALL_PARTICIPANTS if not (p["name"] == name and p.get("researched"))]
+                save_personas()
+                await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+            elif data.get("type") == "suggest_model":
+                person = data.get("person", "")
+                suggested = suggest_research_model(person)
+                await websocket.send_json({"type": "model_suggestion", "person": person, "model": suggested})
+            elif data.get("type") == "dev_bar_message":
+                asyncio.create_task(handle_dev_bar_message(data, websocket))
+            elif data.get("type") == "dev_bar_apply":
+                asyncio.create_task(handle_dev_bar_apply(data, websocket))
+            elif data.get("type") == "dev_bar_clear":
+                dev_bar_history.clear()
+                await websocket.send_json({"type": "dev_bar_cleared"})
     except WebSocketDisconnect:
         if websocket in connected_clients:
             connected_clients.remove(websocket)
@@ -328,7 +1205,256 @@ async def index():
 @app.get("/health")
 async def health():
     active = get_active_participants()
-    return {"status": "ok", "service": "collab-chat", "active": [p["name"] for p in active], "total": len(ALL_PARTICIPANTS)}
+    uptime_secs = int(time.time() - start_time)
+    hours, remainder = divmod(uptime_secs, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return {
+        "status": "ok",
+        "service": "collab-chat",
+        "active": [p["name"] for p in active],
+        "total": len(ALL_PARTICIPANTS),
+        "uptime": f"{hours}h {minutes}m {secs}s",
+        "uptime_seconds": uptime_secs,
+        "model_stats": MODEL_STATS,
+    }
+
+
+@app.get("/api/model-stats")
+async def model_stats():
+    """Return per-model latency and error statistics."""
+    return {"models": MODEL_STATS}
+
+
+@app.get("/api/minutes")
+async def get_minutes():
+    """Export conversation as markdown meeting minutes."""
+
+    active = get_active_participants()
+    active_names = [p["name"] for p in active]
+    all_names = list(dict.fromkeys(
+        msg.get("name", "Unknown") for msg in conversation_history if msg.get("name") != "You"
+    ))
+
+    lines = []
+    lines.append("# AI Roundtable — Meeting Minutes")
+    lines.append(f"\n**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    if all_names:
+        lines.append(f"**Participants:** {', '.join(all_names)}")
+    lines.append(f"**Currently active:** {', '.join(active_names) if active_names else 'None'}")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    for msg in conversation_history:
+        name = msg.get("name", "Unknown")
+        content = msg.get("content", "")
+        role = msg.get("role", "")
+        if role == "user":
+            lines.append(f"## User")
+            lines.append(f"\n{content}\n")
+        else:
+            lines.append(f"### {name}")
+            lines.append(f"\n{content}\n")
+
+    return {"markdown": "\n".join(lines)}
+
+
+# Pending edits waiting for user approval
+pending_edits: dict[str, dict] = {}
+
+# Dev bar conversation history (separate from main chat)
+dev_bar_history: list[dict] = []
+
+
+class ApplyEditRequest(BaseModel):
+    instruction: str
+    sender: str = "Unknown"
+    reason: str = ""
+
+
+class ApproveEditRequest(BaseModel):
+    editor_model: str = "claude-opus-4-6"
+    reason: str = ""
+
+
+@app.post("/api/propose-edit")
+async def propose_edit(request: ApplyEditRequest):
+    """Queue an AI response as a proposed edit. Returns an edit_id for approval."""
+    edit_id = uuid.uuid4().hex[:8]
+    pending_edits[edit_id] = {
+        "instruction": request.instruction,
+        "sender": request.sender,
+        "reason": request.reason,
+        "status": "pending",
+        "result": None,
+        "editor_model": None,
+    }
+    await broadcast({
+        "type": "edit_proposed",
+        "edit_id": edit_id,
+        "sender": request.sender,
+        "instruction": request.instruction[:200] + ("..." if len(request.instruction) > 200 else ""),
+    })
+    return {"edit_id": edit_id, "status": "pending"}
+
+
+@app.post("/api/approve-edit/{edit_id}")
+async def approve_edit(edit_id: str, request: Optional[ApproveEditRequest] = None):
+    """Approve and execute a pending edit using the chosen AI model."""
+    if request is None:
+        request = ApproveEditRequest()
+
+    edit = pending_edits.get(edit_id)
+    if not edit:
+        return {"error": "Edit not found"}
+    if edit["status"] != "pending":
+        return {"error": f"Edit already {edit['status']}"}
+
+    editor_model = request.editor_model
+    reason = request.reason or edit.get("reason", "")
+    edit["status"] = "running"
+    edit["editor_model"] = editor_model
+    edit["reason"] = reason
+    await broadcast({"type": "edit_running", "edit_id": edit_id, "editor": editor_model})
+
+    instruction = edit["instruction"]
+    source_dir = Path(__file__).parent
+    try:
+        backup_path = create_backup(f"edit_{edit_id}", reason)
+    except Exception:
+        backup_path = None
+
+    # Read current source files to include in context
+    try:
+        main_py = (source_dir / "main.py").read_text()
+        index_html = (source_dir / "index.html").read_text()
+    except Exception as e:
+        edit["status"] = "error"
+        await broadcast({"type": "edit_failed", "edit_id": edit_id, "error": f"Cannot read source: {e}"})
+        return {"error": f"Cannot read source: {e}"}
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # For Claude models, use claude-code container (can actually edit files)
+    if editor_model.startswith("claude-"):
+        prompt = (
+            f"You are editing the AI Roundtable collab-chat application.\n"
+            f"Source files are in /collab-chat/: main.py (FastAPI backend) and index.html (frontend).\n"
+            f"Today is {today}.\n\n"
+            f"{SAFE_EDIT_INSTRUCTIONS}\n\n"
+            f"Apply this change:\n{instruction}\n\n"
+            f"Reason for edit: {reason}\n\n"
+            f"Make minimal, targeted edits following the SAFE EDIT rules above."
+        )
+        claude_code_url = CLAUDE_CODE_URL
+        try:
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                resp = await client.post(
+                    f"{claude_code_url}/v1/code/execute",
+                    json={"prompt": prompt, "working_dir": "/collab-chat"},
+                )
+                if resp.status_code != 200:
+                    raise Exception(f"HTTP {resp.status_code}: {resp.text[:200]}")
+                result = resp.json().get("output", "No output")
+        except Exception as e:
+            error_msg = str(e)[:200]
+            edit["status"] = "error"
+            edit["result"] = error_msg
+            await broadcast({"type": "edit_failed", "edit_id": edit_id, "error": error_msg})
+            return {"edit_id": edit_id, "status": "error", "error": error_msg}
+    else:
+        # For Grok, DeepSeek, etc — use the router to get edit instructions,
+        # then apply them via claude-code (since only Claude Code CLI can write files)
+        plan_prompt = (
+            f"You are editing the AI Roundtable collab-chat application. Below are the COMPLETE source files.\n\n"
+            f"## main.py (FastAPI backend — COMPLETE FILE)\n```python\n{main_py}\n```\n\n"
+            f"## index.html (Frontend — COMPLETE FILE)\n```html\n{index_html}\n```\n\n"
+            f"## Requested change\n{instruction}\n\n"
+            f"## Reason\n{reason}\n\n"
+            f"Write the EXACT edits needed as a series of search-and-replace instructions.\n"
+            f"Format each edit as:\n"
+            f"FILE: <filename>\n"
+            f"FIND:\n```\n<exact text to find>\n```\n"
+            f"REPLACE:\n```\n<replacement text>\n```\n\n"
+            f"Be precise — the FIND text must match the source EXACTLY (copy-paste from above). Make minimal, targeted changes. Do NOT ask for more code — the complete files are provided above."
+        )
+        try:
+            # Get edit plan from chosen model via router
+            plan_msgs = [{"role": "user", "content": plan_prompt}]
+            edit_plan = await ask_model(editor_model, editor_model, plan_msgs)
+
+            if edit_plan.startswith("[Error") or edit_plan.startswith("[Timeout"):
+                raise Exception(edit_plan)
+
+            # Execute the plan via claude-code
+            apply_prompt = (
+                f"You are editing the AI Roundtable collab-chat application.\n"
+                f"Source files are in /collab-chat/: main.py and index.html.\n\n"
+                f"Apply these edits exactly as specified by {editor_model}:\n\n{edit_plan}\n\n"
+                f"Use the Edit tool to make each change. Do not deviate from the instructions above."
+            )
+            claude_code_url = CLAUDE_CODE_URL
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                resp = await client.post(
+                    f"{claude_code_url}/v1/code/execute",
+                    json={"prompt": apply_prompt, "working_dir": "/collab-chat"},
+                )
+                if resp.status_code != 200:
+                    raise Exception(f"HTTP {resp.status_code}: {resp.text[:200]}")
+                result = f"[{editor_model} planned, Claude applied]\n\n{resp.json().get('output', 'No output')}"
+        except Exception as e:
+            error_msg = str(e)[:200]
+            edit["status"] = "error"
+            edit["result"] = error_msg
+            await broadcast({"type": "edit_failed", "edit_id": edit_id, "error": error_msg})
+            return {"edit_id": edit_id, "status": "error", "error": error_msg}
+
+    # Log the edit
+
+    log_entry = (
+        f"\n## Edit {edit_id} — {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+        f"**Editor:** {editor_model}\n"
+        f"**Proposed by:** {edit['sender']}\n"
+        f"**Reason:** {reason or 'No reason given'}\n"
+        f"**Backup:** {backup_path.relative_to(source_dir) if backup_path else 'Backup failed'}\n"
+        f"**Instruction:** {instruction[:300]}\n"
+        f"**Result:** {result[:300]}\n"
+        f"---\n"
+    )
+    log_path = source_dir / "edit_log.md"
+    try:
+        existing = log_path.read_text() if log_path.exists() else "# Collab Chat Edit Log\n"
+        log_path.write_text(existing + log_entry)
+    except Exception:
+        pass  # Non-critical
+
+    edit["status"] = "applied"
+    edit["result"] = result
+    await broadcast({
+        "type": "edit_applied",
+        "edit_id": edit_id,
+        "editor": editor_model,
+        "result": result[:500],
+    })
+    return {"edit_id": edit_id, "status": "applied", "editor": editor_model, "result": result[:500]}
+
+
+@app.post("/api/reject-edit/{edit_id}")
+async def reject_edit(edit_id: str):
+    """Reject a pending edit."""
+    edit = pending_edits.get(edit_id)
+    if not edit:
+        return {"error": "Edit not found"}
+    edit["status"] = "rejected"
+    await broadcast({"type": "edit_rejected", "edit_id": edit_id})
+    return {"edit_id": edit_id, "status": "rejected"}
+
+
+@app.get("/api/pending-edits")
+async def list_pending_edits():
+    """List all pending edits."""
+    return {eid: {"sender": e["sender"], "status": e["status"], "instruction": e["instruction"][:200]}
+            for eid, e in pending_edits.items()}
 
 
 @app.post("/api/clear")
@@ -337,3 +1463,323 @@ async def clear_history():
     conversation_history.clear()
     await broadcast({"type": "clear"})
     return {"status": "cleared"}
+
+
+# ============ Persona Research ============
+
+PERSONA_RESEARCH_PROMPT = """You are creating a hyper-accurate AI persona of {person_name}.
+
+Research this person deeply and create the most authentic representation possible. This persona will participate in business strategy discussions.
+
+You must capture:
+
+1. **Communication style**: How do they actually talk? What phrases do they repeat? Are they blunt, inspirational, analytical, provocative? Do they use metaphors, stories, data, or gut instinct? Give SPECIFIC examples of their speech patterns.
+
+2. **Decision-making framework**: What principles drive their decisions? What do they optimize for? What would they NEVER do? What biases do they have? How do they evaluate risk?
+
+3. **Core beliefs & philosophy**: What are their non-negotiable beliefs about business, life, and success? What books/thinkers influenced them? What's their mental model of the world?
+
+4. **Domain expertise**: What specific areas do they know deeply? What industries, technologies, or strategies are they experts in? What unique insights do they bring?
+
+5. **Controversial/bold takes**: What strong opinions do they hold that others disagree with? What makes them different from generic business advice?
+
+6. **Known quotes & catchphrases**: Include real quotes they're famous for. These should appear naturally in the persona's responses.
+
+7. **Weaknesses & blind spots**: What are they wrong about? What do they overlook? An accurate persona includes flaws.
+
+8. **How they'd respond in a meeting**: If someone pitched them a SaaS idea, what would they focus on? What questions would they ask? What would excite them vs bore them?
+
+Output format — write ONLY the persona text (no headers, no explanation). Start with "You are {person_name} — " and write in second person. The persona should be 300-500 words. Be specific, not generic. Include real quotes, real anecdotes, real decision patterns. This should sound like {person_name}, not a generic AI summary of them.
+
+DO NOT water it down. Be bold, specific, and authentic. If they're controversial, be controversial. If they're blunt, be blunt. Accuracy over safety."""
+
+
+async def handle_research_persona(data: dict, websocket: WebSocket):
+    """Research a real person and add them as a roundtable participant."""
+    person_name = data.get("person", "").strip()
+    model_id = data.get("model", "").strip()
+    if not person_name:
+        return
+
+    # If no model specified, suggest one
+    if not model_id:
+        model_id = suggest_research_model(person_name)
+
+    # Check if persona already exists
+    existing = next((p for p in ALL_PARTICIPANTS if p["name"].lower() == person_name.lower()), None)
+    if existing:
+        await websocket.send_json({
+            "type": "persona_error",
+            "error": f"{person_name} is already in the roundtable",
+        })
+        return
+
+    model_info = next((p for p in ALL_PARTICIPANTS if p["id"] == model_id), None)
+    model_name = model_info["name"] if model_info else model_id
+
+    # Notify user that research is starting
+    await broadcast({
+        "type": "persona_researching",
+        "person": person_name,
+        "model": model_name,
+    })
+
+    # Do the research
+    prompt = PERSONA_RESEARCH_PROMPT.format(person_name=person_name)
+    messages = [{"role": "user", "content": prompt}]
+    persona_text = await ask_model(model_id, model_name, messages)
+
+    if persona_text.startswith("[Error") or persona_text.startswith("[Timeout"):
+        await broadcast({
+            "type": "persona_error",
+            "person": person_name,
+            "error": persona_text,
+        })
+        return
+
+    # Create the participant entry
+    color = next_persona_color()
+    new_participant = {
+        "id": model_id,
+        "name": person_name,
+        "color": color,
+        "type": "agent",
+        "persona": persona_text,
+        "enabled": True,
+        "researched": True,  # Flag to distinguish from built-in agents
+    }
+    ALL_PARTICIPANTS.append(new_participant)
+    save_personas()
+
+    # Broadcast updated participant list and success
+    await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+    await broadcast({
+        "type": "persona_added",
+        "person": person_name,
+        "model": model_name,
+        "color": color,
+        "persona_preview": persona_text[:300] + "..." if len(persona_text) > 300 else persona_text,
+    })
+
+
+# ============ Developer Bar ============
+
+SAFE_EDIT_INSTRUCTIONS = """
+CRITICAL EDITING RULES — you MUST follow these:
+
+1. NEVER delete any line of code. Instead, COMMENT OUT removed lines with a date stamp.
+   - For Python (.py): prefix with # REMOVED {date} —
+   - For HTML (.html): wrap with <!-- REMOVED {date} — --> ... <!-- /REMOVED -->
+
+2. NEW lines you add should have a comment marking when they were added:
+   - For Python: # ADDED {date}
+   - For HTML: <!-- ADDED {date} -->
+
+3. The date format is YYYY-MM-DD (e.g., 2026-02-25).
+
+4. This makes it easy to find and revert changes by searching for the date.
+
+Example Python edit — replacing a line:
+BEFORE:
+    result = old_function(x)
+AFTER:
+    # REMOVED 2026-02-25 — result = old_function(x)
+    result = new_function(x)  # ADDED 2026-02-25
+
+Example HTML edit — replacing a section:
+BEFORE:
+    <button class="old">Click</button>
+AFTER:
+    <!-- REMOVED 2026-02-25 — <button class="old">Click</button> -->
+    <button class="new">Click</button> <!-- ADDED 2026-02-25 -->
+"""
+
+
+async def handle_dev_bar_message(data: dict, websocket: WebSocket):
+    """Handle a direct message from the dev bar to a specific AI model."""
+    model_id = data.get("model", "claude-opus-4-6")
+    content = data.get("content", "").strip()
+    if not content:
+        return
+
+    # Find model info
+    model_info = next((p for p in ALL_PARTICIPANTS if p["id"] == model_id), None)
+    model_name = model_info["name"] if model_info else model_id
+
+    # Add user message to dev bar history
+    dev_bar_history.append({"role": "user", "content": content})
+
+    # Send thinking indicator
+    await websocket.send_json({"type": "dev_bar_thinking", "model": model_name})
+
+    # Read current source files for context
+    source_dir = Path(__file__).parent
+    try:
+        main_py = (source_dir / "main.py").read_text()
+        index_html = (source_dir / "index.html").read_text()
+    except Exception:
+        main_py = "[Could not read main.py]"
+        index_html = "[Could not read index.html]"
+
+    # Build messages with full source context
+    today = datetime.now().strftime("%Y-%m-%d")
+    system_msg = (
+        f"You are a developer assistant working on the AI Roundtable collab-chat application.\n"
+        f"Today is {today}.\n\n"
+        f"## Architecture context\n"
+        f"- LAN-only personal tool (single user, 1-3 browser tabs), NOT a production SaaS app\n"
+        f"- WebSocket-based multi-AI deliberation: participants are AI models/agents, not human users\n"
+        f"- Self-modifying: the 'Apply as edit' feature lets AI propose code changes to THIS app — this is intentional, not a security hole\n"
+        f"- Edits go through an explicit approve/reject UI flow, constrained by SAFE_EDIT_INSTRUCTIONS (comment-out-and-replace pattern)\n"
+        f"- Runs in Docker on a home server (192.168.50.23), behind no public ingress\n"
+        f"- connected_clients list is typically 1-3 entries; broadcast() does not need concurrent sends\n"
+        f"- thinkingEls (frontend) tracks AI participant thinking animations, NOT user connections\n\n"
+        f"The app has two source files:\n"
+        f"- main.py (FastAPI backend with WebSocket)\n"
+        f"- index.html (frontend with JS)\n\n"
+        f"## main.py (COMPLETE)\n```python\n{main_py}\n```\n\n"
+        f"## index.html (COMPLETE)\n```html\n{index_html}\n```\n\n"
+        f"When suggesting code changes, be specific with search-and-replace format.\n"
+        f"When analyzing code, consider the actual deployment context above — do not apply generic production-app checklists.\n"
+        f"Always answer the developer's question directly."
+    )
+
+    messages = [{"role": "system", "content": system_msg}]
+    # Include last 10 dev bar messages for context
+    for msg in dev_bar_history[-10:]:
+        messages.append(msg)
+
+    response = await ask_model(model_id, model_name, messages)
+    dev_bar_history.append({"role": "assistant", "name": model_name, "model": model_id, "content": response})
+
+    await websocket.send_json({
+        "type": "dev_bar_response",
+        "model": model_name,
+        "model_id": model_id,
+        "content": response,
+        "color": model_info["color"] if model_info else "#8b949e",
+    })
+
+
+async def handle_dev_bar_apply(data: dict, websocket: WebSocket):
+    """Apply an edit from the dev bar using safe comment-out approach."""
+    instruction = data.get("instruction", "").strip()
+    model_id = data.get("model", "claude-opus-4-6")
+    reason = data.get("reason", "Dev bar edit")
+
+    if not instruction:
+        await websocket.send_json({"type": "dev_bar_edit_failed", "error": "No instruction provided"})
+        return
+
+    model_info = next((p for p in ALL_PARTICIPANTS if p["id"] == model_id), None)
+    model_name = model_info["name"] if model_info else model_id
+
+    await websocket.send_json({"type": "dev_bar_edit_running", "model": model_name})
+
+    source_dir = Path(__file__).parent
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        backup_label = f"devbar_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        backup_path = create_backup(backup_label, reason)
+    except Exception:
+        backup_path = None
+
+    # Read current source files
+    try:
+        main_py = (source_dir / "main.py").read_text()
+        index_html = (source_dir / "index.html").read_text()
+    except Exception as e:
+        await websocket.send_json({"type": "dev_bar_edit_failed", "error": f"Cannot read source: {e}"})
+        return
+
+    # For Claude models, use claude-code with safe edit instructions
+    claude_code_url = CLAUDE_CODE_URL
+
+    if model_id.startswith("claude-"):
+        prompt = (
+            f"You are editing the AI Roundtable collab-chat application.\n"
+            f"Source files are in /collab-chat/: main.py (FastAPI backend) and index.html (frontend).\n"
+            f"Today is {today}.\n\n"
+            f"{SAFE_EDIT_INSTRUCTIONS}\n\n"
+            f"Apply this change:\n{instruction}\n\n"
+            f"Reason: {reason}\n\n"
+            f"Make minimal, targeted edits following the SAFE EDIT rules above."
+        )
+        try:
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                resp = await client.post(
+                    f"{claude_code_url}/v1/code/execute",
+                    json={"prompt": prompt, "working_dir": "/collab-chat"},
+                )
+                if resp.status_code != 200:
+                    raise Exception(f"HTTP {resp.status_code}: {resp.text[:200]}")
+                result = resp.json().get("output", "No output")
+        except Exception as e:
+            await websocket.send_json({"type": "dev_bar_edit_failed", "error": str(e)[:300]})
+            return
+    else:
+        # Non-Claude: model plans, claude-code executes
+        plan_prompt = (
+            f"You are editing the AI Roundtable collab-chat application.\n"
+            f"Today is {today}.\n\n"
+            f"## main.py (COMPLETE)\n```python\n{main_py}\n```\n\n"
+            f"## index.html (COMPLETE)\n```html\n{index_html}\n```\n\n"
+            f"{SAFE_EDIT_INSTRUCTIONS}\n\n"
+            f"## Requested change\n{instruction}\n\n"
+            f"## Reason\n{reason}\n\n"
+            f"Write the EXACT edits needed as search-and-replace instructions following the SAFE EDIT rules.\n"
+            f"Format each edit as:\n"
+            f"FILE: <filename>\n"
+            f"FIND:\n```\n<exact text to find>\n```\n"
+            f"REPLACE:\n```\n<replacement text with REMOVED/ADDED date comments>\n```\n\n"
+            f"Be precise — the FIND text must match EXACTLY. Do NOT ask for more code."
+        )
+        try:
+            plan_msgs = [{"role": "user", "content": plan_prompt}]
+            edit_plan = await ask_model(model_id, model_name, plan_msgs)
+
+            if edit_plan.startswith("[Error") or edit_plan.startswith("[Timeout"):
+                raise Exception(edit_plan)
+
+            apply_prompt = (
+                f"You are editing the AI Roundtable collab-chat application.\n"
+                f"Source files are in /collab-chat/: main.py and index.html.\n"
+                f"Today is {today}.\n\n"
+                f"{SAFE_EDIT_INSTRUCTIONS}\n\n"
+                f"Apply these edits exactly as specified by {model_name}:\n\n{edit_plan}\n\n"
+                f"Use the Edit tool to make each change. Follow the SAFE EDIT rules."
+            )
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                resp = await client.post(
+                    f"{claude_code_url}/v1/code/execute",
+                    json={"prompt": apply_prompt, "working_dir": "/collab-chat"},
+                )
+                if resp.status_code != 200:
+                    raise Exception(f"HTTP {resp.status_code}: {resp.text[:200]}")
+                result = f"[{model_name} planned, Claude applied]\n\n{resp.json().get('output', 'No output')}"
+        except Exception as e:
+            await websocket.send_json({"type": "dev_bar_edit_failed", "error": str(e)[:300]})
+            return
+
+    # Log the edit
+    log_entry = (
+        f"\n## Dev Bar Edit — {today} {datetime.now().strftime('%H:%M')}\n"
+        f"**Editor:** {model_id}\n"
+        f"**Reason:** {reason}\n"
+        f"**Backup:** {backup_path.relative_to(source_dir) if backup_path else 'Backup failed'}\n"
+        f"**Instruction:** {instruction[:300]}\n"
+        f"**Result:** {result[:300]}\n"
+        f"---\n"
+    )
+    log_path = source_dir / "edit_log.md"
+    try:
+        existing = log_path.read_text() if log_path.exists() else "# Collab Chat Edit Log\n"
+        log_path.write_text(existing + log_entry)
+    except Exception:
+        pass
+
+    await websocket.send_json({
+        "type": "dev_bar_edit_applied",
+        "model": model_name,
+        "result": result[:500],
+    })

@@ -8,7 +8,16 @@ app = FastAPI(title="Grok Proxy", version="1.0.0")
 
 API_KEY = os.environ.get("XAI_API_KEY", "")
 BASE_URL = "https://api.x.ai"
-AVAILABLE_MODELS = ["grok-3", "grok-3-mini"]
+AVAILABLE_MODELS = [
+    "grok-4-1-fast-reasoning",
+    "grok-4-1-fast-non-reasoning",
+    "grok-4-fast-reasoning",
+    "grok-4-fast-non-reasoning",
+    "grok-4-0709",
+    "grok-3",
+    "grok-3-mini",
+    "grok-code-fast-1",
+]
 
 
 @app.post("/v1/chat/completions")

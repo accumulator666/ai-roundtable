@@ -1,0 +1,14 @@
+{
+  "gpt-5.2": {"max_tokens": 2048, "temperature": 0.6, "timeout": 180.0},
+  "gpt-5": {"max_tokens": 2048, "temperature": 0.6, "timeout": 180.0},
+  "gpt-5-mini": {"max_tokens": 1024, "temperature": 0.7},
+  "gpt-5-nano": {"max_tokens": 512, "temperature": 0.7},
+  "o4-mini": {"max_tokens": 1024, "temperature": 0.4, "timeout": 180.0},
+  "o3": {"max_tokens": 2048, "temperature": 0.4, "timeout": 180.0},
+  "o3-mini": {"max_tokens": 1024, "temperature": 0.4, "timeout": 180.0},
+  "o1": {"max_tokens": 2048, "temperature": 0.4, "timeout": 180.0},
+  "o1-pro": {"max_tokens": 2048, "temperature": 0.35, "timeout": 180.0},
+  "gpt-4o": {"max_tokens": 1536, "temperature": 0.6},
+  "gpt-4o-mini": {"max_tokens": 1024, "temperature": 0.7},
+  "gpt-4-turbo": {"max_tokens": 1536, "temperature": 0.6}
+}

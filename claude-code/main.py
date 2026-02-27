@@ -13,7 +13,7 @@ app = FastAPI(title="Claude Code API", version="1.0.0")
 class CodeTaskRequest(BaseModel):
     prompt: str
     working_dir: Optional[str] = "/workspace"
-    allowed_tools: Optional[list[str]] = None
+    allowed_tools: Optional[list[str]] = ["Edit", "Read", "Glob", "Grep", "Write"]
 
 
 class ChatMessage(BaseModel):
@@ -28,11 +28,15 @@ class ChatRequest(BaseModel):
     stream: Optional[bool] = False
 
 
-async def run_claude_code(prompt: str, working_dir: str = "/workspace") -> str:
+async def run_claude_code(prompt: str, working_dir: str = "/workspace", model_flag: list[str] = None, allowed_tools: list[str] = None) -> str:
     cmd = [
         "claude", "-p", prompt,
         "--output-format", "text",
     ]
+    if model_flag:
+        cmd.extend(model_flag)
+    if allowed_tools:
+        cmd.extend(["--allowedTools", ",".join(allowed_tools)])
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
@@ -49,7 +53,7 @@ async def run_claude_code(prompt: str, working_dir: str = "/workspace") -> str:
 
 @app.post("/v1/code/execute")
 async def execute_code_task(request: CodeTaskRequest):
-    result = await run_claude_code(request.prompt, request.working_dir)
+    result = await run_claude_code(request.prompt, request.working_dir, allowed_tools=request.allowed_tools)
     return {
         "id": f"code-{uuid.uuid4().hex[:12]}",
         "status": "completed",
@@ -59,18 +63,33 @@ async def execute_code_task(request: CodeTaskRequest):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: ChatRequest):
-    user_messages = [m for m in request.messages if m.role == "user"]
-    if not user_messages:
-        raise HTTPException(status_code=400, detail="No user message provided")
+    # Build a full prompt from all messages so Claude Code gets the full context
+    parts = []
+    for m in request.messages:
+        if m.role == "system":
+            parts.append(f"<system>\n{m.content}\n</system>")
+        elif m.role == "user":
+            parts.append(f"User: {m.content}")
+        elif m.role == "assistant":
+            parts.append(f"Assistant: {m.content}")
 
-    prompt = user_messages[-1].content
-    result = await run_claude_code(prompt)
+    if not parts:
+        raise HTTPException(status_code=400, detail="No messages provided")
+
+    prompt = "\n\n".join(parts) + "\n\nRespond as the assistant described in the system prompt above. Be direct and concise."
+
+    # Use the requested model if it's a real Claude model, otherwise default
+    model_flag = []
+    if request.model and request.model.startswith("claude-") and request.model != "claude-code":
+        model_flag = ["--model", request.model]
+
+    result = await run_claude_code(prompt, model_flag=model_flag)
 
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
         "object": "chat.completion",
         "created": int(time.time()),
-        "model": "claude-code",
+        "model": request.model or "claude-code",
         "choices": [
             {
                 "index": 0,

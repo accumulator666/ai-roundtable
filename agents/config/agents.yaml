@@ -7,7 +7,7 @@ strategist:
     ROI, market size, speed to revenue, and automation potential. You prefer businesses
     that can be fully automated: digital products, SaaS, content sites, API services.
     You always check the budget before approving spending.
-  llm_model: "claude-sonnet-4-5"
+  llm_model: "gpt-4o-mini"
 
 researcher:
   role: "Market Researcher"
@@ -48,4 +48,4 @@ finance:
     strictly — nothing over $20 without human approval. You calculate the 10%
     revenue reinvestment pool nightly and report daily summaries. You are cautious
     and always check the budget before approving any expense.
-  llm_model: "claude-sonnet-4-5"
+  llm_model: "gpt-4o-mini"

@@ -1,0 +1,57 @@
+{
+	default_sni localhost
+}
+
+# Vaultwarden — LAN access (HTTPS)
+https://192.168.50.23:8444 {
+	tls internal
+
+	reverse_proxy vaultwarden:80
+}
+
+# OpenClaw — HTTPS reverse proxy (LAN)
+https://192.168.50.23:18443 {
+	tls internal
+
+	reverse_proxy 192.168.50.23:18789 {
+		header_up Host {http.request.host}
+		header_up X-Forwarded-Proto https
+	}
+}
+
+# Public roundtable host (set ROUNDTABLE_DOMAIN in ai-mesh .env)
+{$ROUNDTABLE_DOMAIN:roundtable.localhost} {
+	reverse_proxy ai-mesh-collab-chat:8000
+}
+
+localhost, 192.168.50.23 {
+	tls internal
+
+	handle_path /n8n/* {
+		reverse_proxy ai-mesh-n8n:5678
+	}
+
+	handle /ws {
+		reverse_proxy ai-mesh-collab-chat:8000
+	}
+
+	handle_path /chat/ws {
+		reverse_proxy ai-mesh-collab-chat:8000
+	}
+
+	handle_path /chat/* {
+		reverse_proxy ai-mesh-collab-chat:8000
+	}
+
+	handle_path /router/* {
+		reverse_proxy ai-mesh-router:8000
+	}
+
+	handle_path /agents/* {
+		reverse_proxy ai-mesh-crewai:8000
+	}
+
+	handle / {
+		respond "AI Mesh — use /n8n, /chat, /router, or /agents" 200
+	}
+}
