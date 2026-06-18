@@ -1,0 +1,7 @@
+{
+  "name": "Holding Company",
+  "description": "Board room — strategic decisions and capital allocation",
+  "budget_limit_per_action": 100,
+  "budget_limit_daily": 500,
+  "subsidiaries": ["meshtech", "meshmedia", "meshcapital", "meshventures"]
+}

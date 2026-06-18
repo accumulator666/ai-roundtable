@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional, Any, Coroutine, Callable
 from pathlib import Path
 
 app = FastAPI(title="AI Roundtable Chat", version="3.0.0")
@@ -19,6 +19,7 @@ start_time = time.time()
 # ============== Configuration Constants ==============
 ROUTER_URL = os.environ.get("ROUTER_URL", "http://ai-mesh-router:8000")
 CLAUDE_CODE_URL = os.environ.get("CLAUDE_CODE_URL", "http://claude-code:8000")
+CREWAI_URL = os.environ.get("CREWAI_URL", "http://ai-mesh-crewai:8000")
 
 # Timeouts (seconds)
 DEFAULT_TIMEOUT: float = 120.0
@@ -76,6 +77,7 @@ conversation_history: list[dict[str, Any]] = []
 connected_clients: list[WebSocket] = []
 HTTP_CLIENT: Optional[httpx.AsyncClient] = None
 MODEL_SEMAPHORE = asyncio.Semaphore(MODEL_CONCURRENCY)
+SESSION_LOCK = asyncio.Lock()
 MODEL_STATS: dict[str, dict[str, Any]] = {}
 
 # Deliberation control state
@@ -347,6 +349,116 @@ def trim_conversation_history():
         del conversation_history[:excess]
 
 
+# ============== Task Board, Projects, Decisions ==============
+
+TASKS_FILE = Path(__file__).with_name("tasks_data.json")
+PROJECTS_FILE = Path(__file__).with_name("projects.json")
+DECISIONS_FILE = Path(__file__).with_name("decisions.json")
+
+# In-memory stores
+TASK_STORE: dict[str, dict[str, Any]] = {}
+PROJECT_STORE: dict[str, dict[str, Any]] = {}
+DECISION_STORE: list[dict[str, Any]] = []
+ACTIVE_PROJECT: dict[str, str] = {"code": None}
+
+# Job tracking (jobs triggered from collab-chat, polled from CrewAI)
+TRACKED_JOBS: dict[str, dict[str, Any]] = {}
+
+
+def _load_json_file(path: Path, default: Any = None) -> Any:
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+            return data
+        except Exception:
+            pass
+    return default if default is not None else {}
+
+
+def _save_json_file(path: Path, data: Any) -> None:
+    try:
+        path.write_text(json.dumps(data, indent=2, default=str))
+    except Exception:
+        pass
+
+
+def load_tasks() -> dict[str, dict[str, Any]]:
+    data = _load_json_file(TASKS_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_tasks():
+    _save_json_file(TASKS_FILE, TASK_STORE)
+
+
+def load_projects() -> dict[str, dict[str, Any]]:
+    data = _load_json_file(PROJECTS_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_projects():
+    _save_json_file(PROJECTS_FILE, PROJECT_STORE)
+
+
+def load_decisions() -> list[dict[str, Any]]:
+    data = _load_json_file(DECISIONS_FILE, [])
+    return data if isinstance(data, list) else []
+
+
+def save_decisions():
+    _save_json_file(DECISIONS_FILE, DECISION_STORE)
+
+
+def create_task_obj(
+    title: str,
+    description: str,
+    project: str,
+    priority: str = "medium",
+    team: str | None = None,
+    assignee: str | None = None,
+    language: str | None = None,
+    depends_on: list[str] | None = None,
+    integration_notes: str | None = None,
+) -> dict[str, Any]:
+    now = datetime.now().isoformat()
+    task_id = uuid.uuid4().hex[:8]
+    deps = depends_on or []
+    blocked_by = [d for d in deps if TASK_STORE.get(d, {}).get("status") != "done"]
+    status = "blocked" if blocked_by else ("assigned" if (team or assignee) else "backlog")
+    return {
+        "task_id": task_id,
+        "title": title,
+        "description": description,
+        "project": project,
+        "status": status,
+        "priority": priority,
+        "team": team,
+        "assignee": assignee,
+        "language": language,
+        "depends_on": deps,
+        "blocked_by": blocked_by,
+        "integration_notes": integration_notes,
+        "result": None,
+        "created_at": now,
+        "updated_at": now,
+        "job_id": None,
+    }
+
+
+def recompute_blocked(task_id: str | None = None):
+    """Recompute blocked_by for tasks. If task_id given, only recompute tasks depending on it."""
+    targets = list(TASK_STORE.values()) if task_id is None else [
+        t for t in TASK_STORE.values() if task_id in t.get("depends_on", [])
+    ]
+    for t in targets:
+        deps = t.get("depends_on", [])
+        t["blocked_by"] = [d for d in deps if TASK_STORE.get(d, {}).get("status") != "done"]
+        if t["status"] == "blocked" and not t["blocked_by"]:
+            t["status"] = "assigned" if (t.get("team") or t.get("assignee")) else "backlog"
+        elif t["status"] not in ("done", "in_progress", "review") and t["blocked_by"]:
+            t["status"] = "blocked"
+
+
 MODEL_CONFIG = load_model_config()
 ALL_PARTICIPANTS = load_participants()
 
@@ -354,6 +466,17 @@ ALL_PARTICIPANTS = load_participants()
 for persona in load_personas():
     if not any(p["name"].lower() == persona["name"].lower() for p in ALL_PARTICIPANTS):
         ALL_PARTICIPANTS.append(persona)
+
+# Load persistent stores
+TASK_STORE.update(load_tasks())
+PROJECT_STORE.update(load_projects())
+DECISION_STORE.extend(load_decisions())
+
+# Set active project
+for proj in PROJECT_STORE.values():
+    if proj.get("active"):
+        ACTIVE_PROJECT["code"] = proj["code"]
+        break
 
 
 def create_backup(label: str, reason: str = "") -> Path:
@@ -433,6 +556,7 @@ def update_model_stats(model_id: str, ok: bool, elapsed_ms: float, error_type: O
 @app.on_event("startup")
 async def _startup() -> None:
     get_http_client()
+    asyncio.create_task(poll_tracked_jobs())
 
 
 @app.on_event("shutdown")
@@ -541,6 +665,45 @@ async def broadcast(message: dict[str, Any]):
             connected_clients.remove(ws)
         except ValueError:
             pass  # Already removed
+
+
+async def run_serialized_job(
+    job_factory: Callable[[], Coroutine[Any, Any, None]],
+    websocket: Optional[WebSocket] = None,
+):
+    """Ensure only one roundtable workflow runs at a time."""
+    if SESSION_LOCK.locked():
+        msg = {
+            "type": "message",
+            "role": "assistant",
+            "name": "System",
+            "color": "#666",
+            "content": "Roundtable is busy. Wait for the current run to finish or press Stop.",
+        }
+        try:
+            if websocket is not None:
+                await websocket.send_json(msg)
+            else:
+                await broadcast(msg)
+        except Exception:
+            pass
+        return
+
+    async with SESSION_LOCK:
+        try:
+            await job_factory()
+        except Exception as e:
+            await broadcast({
+                "type": "message",
+                "role": "assistant",
+                "name": "System",
+                "color": "#b91c1c",
+                "content": f"Roundtable run failed: {str(e)[:200]}",
+            })
+            deliberation_state["paused"] = False
+            deliberation_state["stop_requested"] = False
+            if deliberation_state.get("active"):
+                await update_deliberation_state("active", False)
 
 
 async def fetch_external_data(api_url: str, timeout: float = EXTERNAL_API_TIMEOUT) -> dict[str, Any]:
@@ -681,6 +844,28 @@ def sanitize_input(text: str, max_length: int = 10000) -> str:
     text = text.strip()
     
     return text
+
+
+def is_simple_message(text: str) -> bool:
+    """True for short greetings/small-talk that should not trigger full deliberation."""
+    cleaned = re.sub(r"[^\w\s']", " ", text.lower())
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if not cleaned:
+        return True
+
+    simple_phrases = {
+        "hi", "hello", "hey", "yo", "sup", "hola", "good morning", "good afternoon",
+        "good evening", "how are you", "how are you doing", "whats up", "what's up",
+        "test", "testing",
+    }
+    if cleaned in simple_phrases:
+        return True
+
+    tokens = cleaned.split()
+    if len(tokens) <= 4 and all(t in {"hi", "hello", "hey", "yo", "test", "testing"} for t in tokens):
+        return True
+
+    return False
 
 
 def find_participants_by_names(names: list[str]) -> list[dict[str, Any]]:
@@ -824,8 +1009,28 @@ async def run_roundtable(user_message: str):
         response = await ask_model(p["id"], p["name"], msgs)
         msg = {"role": "assistant", "name": p["name"], "content": response}
         conversation_history.append(msg)
+        trim_conversation_history()
         await broadcast({"type": "message", "role": "assistant", "name": p["name"],
                          "color": p["color"], "badge": p["type"], "content": response})
+        return
+
+    if is_simple_message(user_message):
+        # For greetings/small-talk, avoid expensive multi-round deliberation.
+        p = active[0]
+        await broadcast({"type": "thinking", "name": p["name"], "color": p["color"]})
+        msgs = build_messages(p, conversation_history)
+        response = await ask_model(p["id"], p["name"], msgs)
+        msg = {"role": "assistant", "name": p["name"], "content": response}
+        conversation_history.append(msg)
+        trim_conversation_history()
+        await broadcast({
+            "type": "message",
+            "role": "assistant",
+            "name": p["name"],
+            "color": p["color"],
+            "badge": p["type"],
+            "content": response,
+        })
         return
 
     # === DELIBERATION MODE ===
@@ -834,6 +1039,8 @@ async def run_roundtable(user_message: str):
     deliberation_state["paused"] = False
     deliberation_state["stop_requested"] = False
     await broadcast({"type": "deliberation_start", "participants": active_names, "task": user_message})
+    await broadcast({"type": "status", "message": "Deliberation started", "phase": "round_start", "round": 1,
+                     "metadata": {"participants": active_names, "task": user_message[:200]}})
 
     # Round 1: Run all participants in parallel for faster initial responses
     await broadcast({"type": "round_separator", "round": 1, "label": "Round 1 — Initial positions"})
@@ -851,6 +1058,8 @@ async def run_roundtable(user_message: str):
 
         await broadcast({"type": "round_separator", "round": round_num,
                          "label": f"Round {round_num} — Debate & refine"})
+        await broadcast({"type": "status", "message": f"Round {round_num} started", "phase": "round_start",
+                         "round": round_num, "metadata": None})
 
         nothing_count = 0
         for participant in active:
@@ -912,11 +1121,15 @@ async def run_roundtable(user_message: str):
 
     if stopped:
         await broadcast({"type": "deliberation_stopped"})
-        deliberation_state["active"] = False
+        await broadcast({"type": "status", "message": "Deliberation stopped by user", "phase": "complete", "round": None, "metadata": None})
+        await update_deliberation_state("active", False)
+        structured_session["active"] = False
+        structured_session["phase"] = "idle"
         return
 
     # === SYNTHESIZE FINAL ANSWER ===
     await broadcast({"type": "round_separator", "round": "final", "label": "Final Answer — Synthesizing"})
+    await broadcast({"type": "status", "message": "Synthesizing final answer", "phase": "synthesis", "round": None, "metadata": None})
 
     # Pick the synthesizer: use the first active participant's model
     synthesizer = active[0]
@@ -955,8 +1168,11 @@ async def run_roundtable(user_message: str):
         "color": "#fbbf24", "badge": "synthesis",
         "content": final_response, "is_final": True,
     })
-    deliberation_state["active"] = False
+    await update_deliberation_state("active", False)
     await broadcast({"type": "deliberation_end"})
+    await broadcast({"type": "status", "message": "Deliberation complete", "phase": "complete", "round": None, "metadata": None})
+    structured_session["active"] = False
+    structured_session["phase"] = "complete"
 
 
 async def run_discussion_round(active: list[dict], round_num: int):
@@ -977,7 +1193,7 @@ async def run_discussion_round(active: list[dict], round_num: int):
         status = await check_deliberation_control()
         if status == "stop":
             await broadcast({"type": "deliberation_stopped"})
-            deliberation_state["active"] = False
+            await update_deliberation_state("active", False)
             return
 
         if participant.get("persona"):
@@ -1030,7 +1246,7 @@ async def run_cross_talk():
     deliberation_state["stop_requested"] = False
     await broadcast({"type": "round_separator", "round": "manual"})
     await run_discussion_round(active, round_num=1)
-    deliberation_state["active"] = False
+    await update_deliberation_state("active", False)
     await broadcast({"type": "deliberation_end"})
 
 
@@ -1042,6 +1258,7 @@ async def run_directed_discussion(mentioned: list[dict], topic: str, rounds: int
     # Add user message to history
     conversation_history.append({"role": "user", "name": "You", "content": topic})
     await broadcast({"type": "message", "role": "user", "name": "You", "content": topic})
+    trim_conversation_history()
     await broadcast({"type": "directed_start", "participants": names, "topic": topic})
 
     directed_prompt = (
@@ -1103,7 +1320,7 @@ async def run_directed_discussion(mentioned: list[dict], topic: str, rounds: int
                 "round": round_num,
             })
 
-    deliberation_state["active"] = False
+    await update_deliberation_state("active", False)
     if stopped:
         await broadcast({"type": "deliberation_stopped"})
     else:
@@ -1138,9 +1355,9 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             if data.get("type") == "message":
-                asyncio.create_task(run_roundtable(data["content"]))
+                asyncio.create_task(run_serialized_job(lambda: run_roundtable(data["content"]), websocket))
             elif data.get("type") == "crosstalk":
-                asyncio.create_task(run_cross_talk())
+                asyncio.create_task(run_serialized_job(run_cross_talk, websocket))
             elif data.get("type") == "toggle":
                 name = data.get("name")
                 for p in ALL_PARTICIPANTS:
@@ -1184,6 +1401,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 person = data.get("person", "")
                 suggested = suggest_research_model(person)
                 await websocket.send_json({"type": "model_suggestion", "person": person, "model": suggested})
+            elif data.get("type") == "directed":
+                participant_id = data.get("participant_id", "")
+                message = data.get("message", "").strip()
+                if message and participant_id:
+                    target = next((p for p in ALL_PARTICIPANTS if p["name"] == participant_id or p["id"] == participant_id), None)
+                    if target:
+                        asyncio.create_task(run_serialized_job(
+                            lambda: run_directed_discussion([target], message, rounds=1), websocket))
             elif data.get("type") == "dev_bar_message":
                 asyncio.create_task(handle_dev_bar_message(data, websocket))
             elif data.get("type") == "dev_bar_apply":
@@ -1191,6 +1416,126 @@ async def websocket_endpoint(websocket: WebSocket):
             elif data.get("type") == "dev_bar_clear":
                 dev_bar_history.clear()
                 await websocket.send_json({"type": "dev_bar_cleared"})
+            # --- Phase 1: Task Board, Jobs, Projects, Decisions ---
+            elif data.get("type") == "create_task":
+                task = create_task_obj(
+                    title=data.get("title", "Untitled"),
+                    description=data.get("description", ""),
+                    project=data.get("project") or ACTIVE_PROJECT.get("code") or "default",
+                    priority=data.get("priority", "medium"),
+                    team=data.get("team"),
+                    assignee=data.get("assignee"),
+                    language=data.get("language"),
+                    depends_on=data.get("depends_on", []),
+                    integration_notes=data.get("integration_notes"),
+                )
+                TASK_STORE[task["task_id"]] = task
+                save_tasks()
+                await broadcast({"type": "task_created", "task": task})
+                if data.get("team"):
+                    await assemble_team_for_task(task)
+            elif data.get("type") == "update_task":
+                tid = data.get("task_id", "")
+                task = TASK_STORE.get(tid)
+                if task:
+                    if data.get("status"):
+                        task["status"] = data["status"]
+                    if data.get("assignee") is not None:
+                        task["assignee"] = data["assignee"]
+                    if data.get("result") is not None:
+                        task["result"] = data["result"]
+                    if data.get("integration_notes") is not None:
+                        task["integration_notes"] = data["integration_notes"]
+                    task["updated_at"] = datetime.now().isoformat()
+                    if data.get("status") == "done":
+                        recompute_blocked(tid)
+                    save_tasks()
+                    await broadcast({"type": "task_updated", "task": task})
+            elif data.get("type") == "list_tasks":
+                tasks = list(TASK_STORE.values())
+                proj = data.get("project")
+                if proj:
+                    tasks = [t for t in tasks if t["project"] == proj]
+                st = data.get("status")
+                if st:
+                    tasks = [t for t in tasks if t["status"] == st]
+                tm = data.get("team")
+                if tm:
+                    tasks = [t for t in tasks if t.get("team") == tm]
+                await websocket.send_json({"type": "tasks_list", "tasks": tasks, "project": proj})
+            elif data.get("type") == "trigger_job":
+                job_type = data.get("job_type", "strategy-session")
+                project = data.get("project") or ACTIVE_PROJECT.get("code")
+                params = data.get("params") or {}
+                try:
+                    client = get_http_client()
+                    resp = await client.post(
+                        f"{CREWAI_URL}/v1/agents/{job_type}",
+                        json=params, timeout=30.0,
+                    )
+                    if resp.status_code == 200:
+                        rdata = resp.json()
+                        job_id = rdata.get("job_id", uuid.uuid4().hex[:8])
+                        TRACKED_JOBS[job_id] = {
+                            "job_id": job_id, "job_type": job_type,
+                            "project": project, "status": rdata.get("status", "queued"),
+                            "result": None, "triggered_at": datetime.now().isoformat(),
+                        }
+                        await broadcast({
+                            "type": "job_started", "job_id": job_id, "job_type": job_type,
+                            "description": f"{job_type} for {project or 'general'}", "project": project,
+                        })
+                    else:
+                        await websocket.send_json({"type": "job_error", "job_id": "", "error": f"CrewAI HTTP {resp.status_code}"})
+                except Exception as e:
+                    await websocket.send_json({"type": "job_error", "job_id": "", "error": str(e)[:200]})
+            elif data.get("type") == "approve_decision":
+                did = data.get("decision_id", "")
+                for d in DECISION_STORE:
+                    if d["decision_id"] == did:
+                        d["status"] = "approved"
+                        d["approved_by"] = "user"
+                        save_decisions()
+                        await broadcast({"type": "decision_executing", "decision_id": did})
+                        if d.get("action"):
+                            try:
+                                client = get_http_client()
+                                resp = await client.post(f"{CREWAI_URL}/v1/agents/{d['action']}", json={}, timeout=30.0)
+                                if resp.status_code == 200:
+                                    rdata = resp.json()
+                                    job_id = rdata.get("job_id", uuid.uuid4().hex[:8])
+                                    TRACKED_JOBS[job_id] = {
+                                        "job_id": job_id, "job_type": d["action"],
+                                        "project": d.get("project"), "status": "queued",
+                                        "result": None, "triggered_at": datetime.now().isoformat(),
+                                    }
+                                    d["status"] = "executed"
+                                    d["outcome"] = f"Job {job_id} triggered"
+                                    save_decisions()
+                                    await broadcast({
+                                        "type": "job_started", "job_id": job_id, "job_type": d["action"],
+                                        "description": d["description"], "project": d.get("project"),
+                                    })
+                            except Exception:
+                                pass
+                        break
+            elif data.get("type") == "reject_decision":
+                did = data.get("decision_id", "")
+                for d in DECISION_STORE:
+                    if d["decision_id"] == did:
+                        d["status"] = "rejected"
+                        save_decisions()
+                        await broadcast({"type": "decision_rejected", "decision_id": did})
+                        break
+            elif data.get("type") == "set_project":
+                code = data.get("project", "")
+                if code in PROJECT_STORE:
+                    for p in PROJECT_STORE.values():
+                        p["active"] = False
+                    PROJECT_STORE[code]["active"] = True
+                    ACTIVE_PROJECT["code"] = code
+                    save_projects()
+                    await websocket.send_json({"type": "system", "event": "project_changed", "data": {"project": code}})
     except WebSocketDisconnect:
         if websocket in connected_clients:
             connected_clients.remove(websocket)
@@ -1463,6 +1808,743 @@ async def clear_history():
     conversation_history.clear()
     await broadcast({"type": "clear"})
     return {"status": "cleared"}
+
+
+# ============ Participant & Preset Management ============
+
+@app.get("/api/participants")
+async def list_participants():
+    """Return all participants with enabled status."""
+    return [
+        {
+            "id": p["id"],
+            "name": p["name"],
+            "color": p["color"],
+            "type": p["type"],
+            "enabled": p.get("enabled", False),
+            "persona": p.get("persona"),
+            "researched": p.get("researched", False),
+        }
+        for p in ALL_PARTICIPANTS
+    ]
+
+
+class ParticipantUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    persona: Optional[str] = None
+
+
+@app.put("/api/participants/{name}")
+async def update_participant(name: str, update: ParticipantUpdate):
+    """Toggle enable/disable or update persona for a participant."""
+    participant = next((p for p in ALL_PARTICIPANTS if p["name"] == name), None)
+    if not participant:
+        return JSONResponse(status_code=404, content={"error": f"Participant '{name}' not found"})
+    if update.enabled is not None:
+        participant["enabled"] = update.enabled
+    if update.persona is not None:
+        participant["persona"] = update.persona
+        if participant["type"] == "model" and update.persona:
+            participant["type"] = "agent"
+    await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+    return {"status": "updated", "participant": participant["name"], "enabled": participant["enabled"]}
+
+
+PRESETS_FILE = Path(__file__).with_name("presets.json")
+
+
+def load_presets_file() -> dict[str, Any]:
+    """Load presets from presets.json, falling back to in-memory PRESETS."""
+    if PRESETS_FILE.exists():
+        try:
+            data = json.loads(PRESETS_FILE.read_text())
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {}
+
+
+@app.get("/api/presets")
+async def list_presets():
+    """Return available roundtable presets (in-memory + file-based)."""
+    file_presets = load_presets_file()
+    merged = {**PRESETS, **file_presets}
+    return merged
+
+
+# ============ Structured Roundtable Sessions ============
+
+# Active structured session state
+structured_session: dict[str, Any] = {
+    "active": False,
+    "preset": None,
+    "round": 0,
+    "total_rounds": 0,
+    "phase": "idle",  # idle | running | voting | synthesis | complete
+    "votes": {},  # round_num -> {participant_name: vote_text}
+    "positions": {},  # participant_name -> latest position summary
+}
+
+
+class RoundtableStartRequest(BaseModel):
+    preset: Optional[str] = None
+    topic: Optional[str] = None
+    rounds: Optional[int] = None
+
+
+@app.post("/api/roundtable/start")
+async def start_roundtable(req: RoundtableStartRequest):
+    """Start a structured roundtable session with optional preset."""
+    if deliberation_state["active"]:
+        return JSONResponse(status_code=409, content={"error": "A session is already running"})
+
+    # Apply preset if specified
+    preset_data = None
+    if req.preset:
+        all_presets = {**PRESETS, **load_presets_file()}
+        preset_data = all_presets.get(req.preset)
+        if not preset_data:
+            return JSONResponse(status_code=404, content={"error": f"Preset '{req.preset}' not found"})
+        member_names = [m.lower() for m in preset_data["members"]]
+        for p in ALL_PARTICIPANTS:
+            p["enabled"] = p["name"].lower() in member_names
+        await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+
+    total_rounds = req.rounds or (preset_data or {}).get("deliberation_rounds", 2)
+    structured_session.update({
+        "active": True,
+        "preset": req.preset,
+        "round": 0,
+        "total_rounds": total_rounds,
+        "phase": "running",
+        "votes": {},
+        "positions": {},
+    })
+
+    await broadcast({"type": "status", "message": "Structured session started",
+                     "phase": "round_start", "round": 1, "metadata": {"preset": req.preset, "total_rounds": total_rounds}})
+
+    # If topic provided, kick off the roundtable
+    if req.topic:
+        asyncio.create_task(run_serialized_job(lambda: run_roundtable(req.topic), None))
+
+    return {"status": "started", "preset": req.preset, "total_rounds": total_rounds,
+            "active_participants": [p["name"] for p in get_active_participants()]}
+
+
+@app.get("/api/roundtable/status")
+async def roundtable_status():
+    """Return current structured session state."""
+    return {
+        "deliberation": deliberation_state,
+        "session": {
+            "active": structured_session["active"],
+            "preset": structured_session["preset"],
+            "round": structured_session["round"],
+            "total_rounds": structured_session["total_rounds"],
+            "phase": structured_session["phase"],
+            "vote_count": {str(k): len(v) for k, v in structured_session["votes"].items()},
+        },
+        "active_participants": [p["name"] for p in get_active_participants()],
+        "total_participants": len(ALL_PARTICIPANTS),
+    }
+
+
+class VoteRequest(BaseModel):
+    participant: str
+    vote: str  # "agree", "disagree", "abstain", or free text position
+
+
+@app.post("/api/roundtable/vote")
+async def submit_vote(req: VoteRequest):
+    """Accept a participant vote for the current round."""
+    if not structured_session["active"]:
+        return JSONResponse(status_code=400, content={"error": "No active session"})
+
+    round_key = structured_session["round"] or 1
+    if round_key not in structured_session["votes"]:
+        structured_session["votes"][round_key] = {}
+    structured_session["votes"][round_key][req.participant] = req.vote
+    structured_session["positions"][req.participant] = req.vote
+
+    await broadcast({"type": "status", "message": f"{req.participant} voted: {req.vote}",
+                     "phase": "round_end", "round": round_key,
+                     "metadata": {"voter": req.participant, "vote": req.vote}})
+
+    return {"status": "recorded", "round": round_key, "participant": req.participant}
+
+
+# ============ Export ============
+
+@app.get("/api/export/{fmt}")
+async def export_conversation(fmt: str):
+    """Export conversation as JSON, Markdown, or CSV."""
+    if fmt == "json":
+        return JSONResponse(content={"messages": conversation_history, "exported_at": datetime.now().isoformat()})
+    elif fmt == "markdown" or fmt == "md":
+        lines = [f"# AI Roundtable — {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"]
+        for msg in conversation_history:
+            name = msg.get("name", msg["role"].title())
+            lines.append(f"**{name}:** {msg['content']}\n")
+        return HTMLResponse(content="\n".join(lines), media_type="text/markdown")
+    elif fmt == "csv":
+        import csv
+        import io
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["role", "name", "content"])
+        for msg in conversation_history:
+            writer.writerow([msg["role"], msg.get("name", ""), msg["content"]])
+        return HTMLResponse(content=buf.getvalue(), media_type="text/csv")
+    else:
+        return JSONResponse(status_code=400, content={"error": f"Unsupported format: {fmt}. Use json, markdown, or csv."})
+
+
+# ============ Task Board ============
+
+class TaskCreateRequest(BaseModel):
+    title: str
+    description: str = ""
+    project: Optional[str] = None
+    team: Optional[str] = None
+    assignee: Optional[str] = None
+    priority: str = "medium"
+    language: Optional[str] = None
+    depends_on: list[str] = []
+    integration_notes: Optional[str] = None
+
+
+class TaskUpdateRequest(BaseModel):
+    status: Optional[str] = None
+    assignee: Optional[str] = None
+    result: Optional[str] = None
+    integration_notes: Optional[str] = None
+    team: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+
+@app.post("/api/tasks")
+async def create_task(req: TaskCreateRequest):
+    """Create a new task."""
+    project = req.project or ACTIVE_PROJECT.get("code") or "default"
+    task = create_task_obj(
+        title=req.title,
+        description=req.description,
+        project=project,
+        priority=req.priority,
+        team=req.team,
+        assignee=req.assignee,
+        language=req.language,
+        depends_on=req.depends_on,
+        integration_notes=req.integration_notes,
+    )
+    TASK_STORE[task["task_id"]] = task
+    save_tasks()
+    await broadcast({"type": "task_created", "task": task})
+
+    # If team specified, assemble team
+    if req.team:
+        await assemble_team_for_task(task)
+
+    return task
+
+
+@app.get("/api/tasks")
+async def list_tasks(
+    project: Optional[str] = None,
+    status: Optional[str] = None,
+    team: Optional[str] = None,
+    assignee: Optional[str] = None,
+):
+    """List tasks with optional filters."""
+    tasks = list(TASK_STORE.values())
+    if project:
+        tasks = [t for t in tasks if t["project"] == project]
+    if status:
+        tasks = [t for t in tasks if t["status"] == status]
+    if team:
+        tasks = [t for t in tasks if t.get("team") == team]
+    if assignee:
+        tasks = [t for t in tasks if t.get("assignee") == assignee]
+    tasks.sort(key=lambda t: (
+        {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(t["priority"], 2),
+        t["created_at"],
+    ))
+    return {"tasks": tasks, "total": len(tasks)}
+
+
+@app.get("/api/tasks/board")
+async def task_board(project: Optional[str] = None):
+    """Get tasks grouped by status (kanban view)."""
+    tasks = list(TASK_STORE.values())
+    if project:
+        tasks = [t for t in tasks if t["project"] == project]
+    board = {}
+    for status in ["backlog", "assigned", "in_progress", "review", "done", "blocked"]:
+        board[status] = [t for t in tasks if t["status"] == status]
+    return {"board": board, "project": project}
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task(task_id: str):
+    """Get a single task."""
+    task = TASK_STORE.get(task_id)
+    if not task:
+        return JSONResponse(status_code=404, content={"error": "Task not found"})
+    return task
+
+
+@app.put("/api/tasks/{task_id}")
+async def update_task(task_id: str, req: TaskUpdateRequest):
+    """Update a task."""
+    task = TASK_STORE.get(task_id)
+    if not task:
+        return JSONResponse(status_code=404, content={"error": "Task not found"})
+
+    if req.status is not None:
+        task["status"] = req.status
+    if req.assignee is not None:
+        task["assignee"] = req.assignee
+    if req.result is not None:
+        task["result"] = req.result
+    if req.integration_notes is not None:
+        task["integration_notes"] = req.integration_notes
+    if req.team is not None:
+        task["team"] = req.team
+    if req.title is not None:
+        task["title"] = req.title
+    if req.description is not None:
+        task["description"] = req.description
+    task["updated_at"] = datetime.now().isoformat()
+
+    # If task completed, unblock dependents
+    if req.status == "done":
+        recompute_blocked(task_id)
+
+    save_tasks()
+    await broadcast({"type": "task_updated", "task": task})
+    return task
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: str):
+    """Delete a task."""
+    if task_id not in TASK_STORE:
+        return JSONResponse(status_code=404, content={"error": "Task not found"})
+    del TASK_STORE[task_id]
+    save_tasks()
+    return {"status": "deleted", "task_id": task_id}
+
+
+@app.post("/api/tasks/{task_id}/discuss")
+async def discuss_task(task_id: str):
+    """Start a roundtable discussion about a specific task."""
+    task = TASK_STORE.get(task_id)
+    if not task:
+        return JSONResponse(status_code=404, content={"error": "Task not found"})
+
+    # Assemble team if specified
+    if task.get("team"):
+        await assemble_team_for_task(task)
+
+    # Build discussion prompt from task details
+    prompt_parts = [f"TASK: {task['title']}"]
+    if task.get("description"):
+        prompt_parts.append(f"Description: {task['description']}")
+    if task.get("language"):
+        prompt_parts.append(f"Language: {task['language']}")
+    if task.get("integration_notes"):
+        prompt_parts.append(f"Integration notes: {task['integration_notes']}")
+    if task.get("depends_on"):
+        dep_titles = [TASK_STORE.get(d, {}).get("title", d) for d in task["depends_on"]]
+        prompt_parts.append(f"Depends on: {', '.join(dep_titles)}")
+
+    prompt = "\n".join(prompt_parts)
+    prompt += "\n\nDiscuss this task. Provide your expert perspective, identify risks, propose implementation details, and coordinate with the team."
+
+    # Update task status
+    if task["status"] in ("backlog", "assigned"):
+        task["status"] = "in_progress"
+        task["updated_at"] = datetime.now().isoformat()
+        save_tasks()
+        await broadcast({"type": "task_updated", "task": task})
+
+    # Kick off roundtable
+    asyncio.create_task(run_serialized_job(lambda: run_roundtable(prompt), None))
+
+    return {"status": "discussion_started", "task_id": task_id, "team": task.get("team")}
+
+
+async def assemble_team_for_task(task: dict[str, Any]):
+    """Activate participants for a task's team preset."""
+    team_name = task.get("team")
+    if not team_name:
+        return
+
+    # Check PRESETS (in-memory) and presets.json
+    all_presets = {**PRESETS, **load_presets_file()}
+    preset = all_presets.get(team_name)
+    if not preset:
+        return
+
+    members = preset.get("members", preset.get("participants", []))
+    member_names = [m.lower() for m in members]
+    activated = []
+    for p in ALL_PARTICIPANTS:
+        if p["name"].lower() in member_names:
+            p["enabled"] = True
+            activated.append(p["name"])
+
+    if activated:
+        await broadcast({"type": "participants", "data": ALL_PARTICIPANTS})
+        await broadcast({
+            "type": "team_assembled",
+            "project": task.get("project", ""),
+            "team": team_name,
+            "members": activated,
+        })
+
+
+# ============ Project Management ============
+
+class ProjectCreateRequest(BaseModel):
+    code: str
+    name: str
+    description: str = ""
+    repo_path: Optional[str] = None
+    tech_stack: list[str] = []
+    teams: list[str] = []
+
+
+class ProjectUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    repo_path: Optional[str] = None
+    tech_stack: Optional[list[str]] = None
+    teams: Optional[list[str]] = None
+    active: Optional[bool] = None
+
+
+@app.get("/api/projects")
+async def list_projects():
+    """List all registered projects."""
+    projects = []
+    for proj in PROJECT_STORE.values():
+        task_counts = {}
+        for s in ["backlog", "assigned", "in_progress", "review", "done", "blocked"]:
+            task_counts[s] = sum(1 for t in TASK_STORE.values()
+                                 if t["project"] == proj["code"] and t["status"] == s)
+        projects.append({**proj, "task_counts": task_counts})
+    return {"projects": projects}
+
+
+@app.get("/api/projects/{code}")
+async def get_project(code: str):
+    """Get project details with task summary."""
+    proj = PROJECT_STORE.get(code)
+    if not proj:
+        return JSONResponse(status_code=404, content={"error": "Project not found"})
+    task_counts = {}
+    for s in ["backlog", "assigned", "in_progress", "review", "done", "blocked"]:
+        task_counts[s] = sum(1 for t in TASK_STORE.values()
+                              if t["project"] == code and t["status"] == s)
+    tasks = [t for t in TASK_STORE.values() if t["project"] == code]
+    return {**proj, "task_counts": task_counts, "tasks": tasks}
+
+
+@app.post("/api/projects")
+async def create_project(req: ProjectCreateRequest):
+    """Register a new project."""
+    if req.code in PROJECT_STORE:
+        return JSONResponse(status_code=409, content={"error": "Project already exists"})
+    proj = {
+        "code": req.code,
+        "name": req.name,
+        "description": req.description,
+        "repo_path": req.repo_path,
+        "tech_stack": req.tech_stack,
+        "teams": req.teams,
+        "active": len(PROJECT_STORE) == 0,
+        "created_at": datetime.now().isoformat(),
+    }
+    PROJECT_STORE[req.code] = proj
+    if proj["active"]:
+        ACTIVE_PROJECT["code"] = req.code
+    save_projects()
+    return proj
+
+
+@app.put("/api/projects/{code}")
+async def update_project(code: str, req: ProjectUpdateRequest):
+    """Update project config."""
+    proj = PROJECT_STORE.get(code)
+    if not proj:
+        return JSONResponse(status_code=404, content={"error": "Project not found"})
+    if req.name is not None:
+        proj["name"] = req.name
+    if req.description is not None:
+        proj["description"] = req.description
+    if req.repo_path is not None:
+        proj["repo_path"] = req.repo_path
+    if req.tech_stack is not None:
+        proj["tech_stack"] = req.tech_stack
+    if req.teams is not None:
+        proj["teams"] = req.teams
+    if req.active is not None:
+        if req.active:
+            for p in PROJECT_STORE.values():
+                p["active"] = False
+            proj["active"] = True
+            ACTIVE_PROJECT["code"] = code
+        else:
+            proj["active"] = False
+            if ACTIVE_PROJECT["code"] == code:
+                ACTIVE_PROJECT["code"] = None
+    save_projects()
+    return proj
+
+
+# ============ CrewAI Job Integration ============
+
+class JobTriggerRequest(BaseModel):
+    job_type: str = "strategy-session"
+    project: Optional[str] = None
+    params: Optional[dict] = None
+
+
+@app.post("/api/jobs/trigger")
+async def trigger_job(req: JobTriggerRequest):
+    """Trigger a CrewAI agent job."""
+    project = req.project or ACTIVE_PROJECT.get("code")
+    try:
+        client = get_http_client()
+        body = req.params or {}
+        resp = await client.post(
+            f"{CREWAI_URL}/v1/agents/{req.job_type}",
+            json=body,
+            timeout=30.0,
+        )
+        if resp.status_code != 200:
+            return JSONResponse(status_code=resp.status_code,
+                                content={"error": f"CrewAI returned {resp.status_code}: {resp.text[:200]}"})
+        data = resp.json()
+        job_id = data.get("job_id", uuid.uuid4().hex[:8])
+
+        tracked = {
+            "job_id": job_id,
+            "job_type": req.job_type,
+            "project": project,
+            "status": data.get("status", "queued"),
+            "result": None,
+            "triggered_at": datetime.now().isoformat(),
+        }
+        TRACKED_JOBS[job_id] = tracked
+
+        await broadcast({
+            "type": "job_started",
+            "job_id": job_id,
+            "job_type": req.job_type,
+            "description": f"{req.job_type} for {project or 'general'}",
+            "project": project,
+        })
+        return tracked
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:300]})
+
+
+@app.get("/api/jobs")
+async def list_jobs(project: Optional[str] = None, status: Optional[str] = None):
+    """List tracked jobs, also fetching from CrewAI."""
+    try:
+        client = get_http_client()
+        resp = await client.get(f"{CREWAI_URL}/v1/agents/jobs", timeout=10.0)
+        if resp.status_code == 200:
+            crewai_jobs = resp.json()
+            if isinstance(crewai_jobs, list):
+                for j in crewai_jobs:
+                    jid = j.get("job_id", "")
+                    if jid and jid in TRACKED_JOBS:
+                        TRACKED_JOBS[jid]["status"] = j.get("status", TRACKED_JOBS[jid]["status"])
+                        if j.get("result"):
+                            TRACKED_JOBS[jid]["result"] = j["result"]
+    except Exception:
+        pass
+
+    jobs = list(TRACKED_JOBS.values())
+    if project:
+        jobs = [j for j in jobs if j.get("project") == project]
+    if status:
+        jobs = [j for j in jobs if j.get("status") == status]
+    jobs.sort(key=lambda j: j.get("triggered_at", ""), reverse=True)
+    return {"jobs": jobs, "total": len(jobs)}
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job(job_id: str):
+    """Get job status, fetching fresh data from CrewAI."""
+    try:
+        client = get_http_client()
+        resp = await client.get(f"{CREWAI_URL}/v1/agents/jobs/{job_id}", timeout=10.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            if job_id in TRACKED_JOBS:
+                TRACKED_JOBS[job_id]["status"] = data.get("status", TRACKED_JOBS[job_id]["status"])
+                if data.get("result"):
+                    TRACKED_JOBS[job_id]["result"] = data["result"]
+                return TRACKED_JOBS[job_id]
+            return data
+    except Exception:
+        pass
+
+    if job_id in TRACKED_JOBS:
+        return TRACKED_JOBS[job_id]
+    return JSONResponse(status_code=404, content={"error": "Job not found"})
+
+
+# ============ Decision Tracking ============
+
+class DecisionCreateRequest(BaseModel):
+    description: str
+    project: Optional[str] = None
+    action: Optional[str] = None
+    decided_by: list[str] = []
+
+
+@app.get("/api/decisions")
+async def list_decisions(project: Optional[str] = None, limit: int = 50):
+    """List recent decisions."""
+    decisions = DECISION_STORE
+    if project:
+        decisions = [d for d in decisions if d.get("project") == project]
+    return {"decisions": decisions[-limit:], "total": len(decisions)}
+
+
+@app.post("/api/decisions")
+async def create_decision(req: DecisionCreateRequest):
+    """Record a decision."""
+    decision = {
+        "decision_id": uuid.uuid4().hex[:8],
+        "project": req.project or ACTIVE_PROJECT.get("code"),
+        "description": req.description,
+        "action": req.action,
+        "outcome": None,
+        "decided_by": req.decided_by,
+        "approved_by": None,
+        "created_at": datetime.now().isoformat(),
+        "status": "proposed",
+    }
+    DECISION_STORE.append(decision)
+    save_decisions()
+    await broadcast({
+        "type": "decision_detected",
+        "decision_id": decision["decision_id"],
+        "action": decision["action"] or "",
+        "description": decision["description"],
+        "project": decision["project"],
+    })
+    return decision
+
+
+# ============ Dashboard ============
+
+@app.get("/api/dashboard")
+async def get_dashboard(project: Optional[str] = None):
+    """Combined dashboard: tasks, jobs, decisions."""
+    proj_code = project or ACTIVE_PROJECT.get("code")
+
+    tasks = list(TASK_STORE.values())
+    if proj_code:
+        tasks = [t for t in tasks if t["project"] == proj_code]
+    task_counts = {}
+    for s in ["backlog", "assigned", "in_progress", "review", "done", "blocked"]:
+        task_counts[s] = sum(1 for t in tasks if t["status"] == s)
+
+    active_jobs = [j for j in TRACKED_JOBS.values()
+                   if j.get("status") in ("queued", "running")]
+    if proj_code:
+        active_jobs = [j for j in active_jobs if j.get("project") == proj_code]
+
+    decisions = DECISION_STORE[-10:]
+    if proj_code:
+        decisions = [d for d in DECISION_STORE if d.get("project") == proj_code][-10:]
+
+    pnl = {"revenue": 0, "expenses": 0, "profit": 0, "note": "P&L integration coming in Phase 2"}
+
+    return {
+        "project": proj_code,
+        "project_name": PROJECT_STORE.get(proj_code, {}).get("name", proj_code) if proj_code else None,
+        "task_counts": task_counts,
+        "total_tasks": len(tasks),
+        "active_jobs": len(active_jobs),
+        "jobs": active_jobs,
+        "recent_decisions": decisions,
+        "pnl": pnl,
+        "active_participants": [p["name"] for p in get_active_participants()],
+    }
+
+
+@app.get("/api/pnl")
+async def get_pnl():
+    """P&L summary. Phase 1 stub — Phase 2 will query PostgreSQL budget_ledger."""
+    return {
+        "revenue": 0,
+        "expenses": 0,
+        "profit": 0,
+        "entries": [],
+        "note": "P&L integration coming in Phase 2 — will query ai_mesh.budget_ledger",
+    }
+
+
+# ============ Job Poller (background) ============
+
+async def poll_tracked_jobs():
+    """Background task: poll CrewAI for job status updates every 15s."""
+    while True:
+        await asyncio.sleep(15)
+        if not TRACKED_JOBS:
+            continue
+        active = {jid: j for jid, j in TRACKED_JOBS.items() if j.get("status") in ("queued", "running")}
+        if not active:
+            continue
+        for job_id, job in active.items():
+            try:
+                client = get_http_client()
+                resp = await client.get(f"{CREWAI_URL}/v1/agents/jobs/{job_id}", timeout=10.0)
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                new_status = data.get("status", job["status"])
+                if new_status != job["status"]:
+                    job["status"] = new_status
+                    if data.get("result"):
+                        job["result"] = data["result"]
+                    await broadcast({
+                        "type": "job_update",
+                        "job_id": job_id,
+                        "status": new_status,
+                        "result": (data.get("result") or "")[:500] if data.get("result") else None,
+                        "progress": None,
+                    })
+                    # If job linked to a task, update the task
+                    for t in TASK_STORE.values():
+                        if t.get("job_id") == job_id:
+                            if new_status == "completed":
+                                t["status"] = "review"
+                                t["result"] = (data.get("result") or "")[:1000]
+                                t["updated_at"] = datetime.now().isoformat()
+                                recompute_blocked(t["task_id"])
+                                save_tasks()
+                                await broadcast({"type": "task_updated", "task": t})
+                            elif new_status == "failed":
+                                t["status"] = "blocked"
+                                t["updated_at"] = datetime.now().isoformat()
+                                save_tasks()
+                                await broadcast({"type": "task_updated", "task": t})
+                            break
+            except Exception:
+                continue
 
 
 # ============ Persona Research ============

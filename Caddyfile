@@ -19,6 +19,16 @@ https://192.168.50.23:18443 {
 	}
 }
 
+# Paperclip — HTTPS reverse proxy (LAN)
+https://192.168.50.23:8445 {
+	tls internal
+
+	reverse_proxy 192.168.50.23:3100 {
+		header_up Host {http.request.host}
+		header_up X-Forwarded-Proto https
+	}
+}
+
 # Public roundtable host (set ROUNDTABLE_DOMAIN in ai-mesh .env)
 {$ROUNDTABLE_DOMAIN:roundtable.localhost} {
 	reverse_proxy ai-mesh-collab-chat:8000

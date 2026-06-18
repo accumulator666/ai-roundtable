@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
-from routing import resolve_proxy_url, auto_select_model, get_all_models, check_health, MODEL_TO_PROXY
+from routing import resolve_proxy_url, resolve_model_name, auto_select_model, get_all_models, check_health, MODEL_TO_PROXY
 from delegation import extract_delegations, strip_delegations, publish_event
 
 app = FastAPI(title="AI Router", version="1.0.0")
@@ -46,6 +46,7 @@ async def chat_completions(request: ChatRequest):
         model = auto_select_model([m.model_dump() for m in request.messages])
 
     proxy_url = resolve_proxy_url(model)
+    model = resolve_model_name(model)  # Resolve aliases (e.g. qwen2.5:latest → qwen2.5:7b)
     body = request.model_dump()
     body["model"] = model
 

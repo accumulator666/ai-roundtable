@@ -1,0 +1,7 @@
+{
+  "name": "MeshVentures",
+  "description": "Rapid idea generation, MVP building, marketplace products, 3D printing",
+  "budget_limit_per_action": 20,
+  "budget_limit_daily": 100,
+  "revenue_model": "Etsy/Gumroad/Shopify sales + prompt template sales + 3D printed products"
+}

@@ -1,0 +1,2927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holding Company — AI Roundtable</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+  header h1 { font-size: 18px; font-weight: 600; color: #58a6ff; }
+  header .controls { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn:hover { background: #30363d; }
+  .main-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  /* Sidebar */
+  /* REMOVED 2026-02-25 — #sidebar { */
+  /* REMOVED 2026-02-25 —   width: 260px; */
+
+  #sidebar {  /* ADDED 2026-02-25 */
+    width: 260px;
+    @media (max-width: 768px) {
+      width: 200px;  /* ADDED 2026-02-25 */
+    }
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    overflow-y: auto;
+    padding: 12px;
+    flex-shrink: 0;
+    transition: margin-left 0.2s;
+  }
+  #sidebar.hidden { margin-left: -260px; }
+  #sidebar-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .sidebar-tab {
+    background: #0d1117;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .sidebar-tab.active {
+    color: #58a6ff;
+    border-color: #58a6ff;
+    background: #111d2f;
+  }
+  .sidebar-panel { display: none; }
+  .sidebar-panel.active { display: block; }
+  .sidebar-section { margin-bottom: 16px; }
+  .sidebar-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+  .stats-body { display: flex; flex-direction: column; gap: 6px; padding: 4px; }
+  .stat-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #c9d1d9; }
+  .stat-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-meta { color: #8b949e; font-variant-numeric: tabular-nums; }
+  .stat-badge { padding: 1px 6px; border-radius: 999px; background: #21262d; border: 1px solid #30363d; }
+  .project-select {
+    width: 100%;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .project-meta {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #c9d1d9;
+    margin-bottom: 6px;
+  }
+  .project-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tech-badge {
+    font-size: 10px;
+    background: #1f2937;
+    color: #93c5fd;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 1px 6px;
+  }
+  .task-controls {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .btn-wide {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+  }
+  .btn-wide:hover { background: #30363d; }
+  .btn-wide.primary {
+    background: #1f6feb;
+    border-color: #1f6feb;
+    color: #fff;
+  }
+  .btn-wide.primary:hover { background: #388bfd; }
+  .task-form {
+    display: none;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .task-form.open { display: grid; gap: 6px; }
+  .task-form input,
+  .task-form textarea,
+  .task-form select {
+    width: 100%;
+    background: #161b22;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 7px 8px;
+    font-family: inherit;
+  }
+  .task-form textarea { min-height: 62px; resize: vertical; }
+  .task-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .task-form-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .team-preview {
+    font-size: 11px;
+    color: #8b949e;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px;
+    line-height: 1.35;
+  }
+  .kanban-board {
+    display: grid;
+    gap: 8px;
+  }
+  .kanban-column {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    min-height: 62px;
+    padding: 6px;
+  }
+  .kanban-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #8b949e;
+    margin-bottom: 6px;
+  }
+  .kanban-count {
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: #c9d1d9;
+  }
+  .kanban-dropzone {
+    min-height: 36px;
+    display: grid;
+    gap: 6px;
+  }
+  .kanban-dropzone.drag-over {
+    outline: 1px dashed #58a6ff;
+    border-radius: 6px;
+  }
+  .task-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 7px;
+    cursor: pointer;
+  }
+  .task-card:hover { border-color: #58a6ff; }
+  .task-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .task-title {
+    font-size: 12px;
+    color: #c9d1d9;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .priority-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 10px;
+    padding: 1px 6px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .priority-critical { color: #ffa198; border-color: #f85149; background: #2b1111; }
+  .priority-high { color: #f2cc60; border-color: #d29922; background: #2a2007; }
+  .priority-medium { color: #79c0ff; border-color: #58a6ff; background: #0f1f36; }
+  .priority-low { color: #7ee787; border-color: #238636; background: #0f2415; }
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .meta-pill {
+    font-size: 10px;
+    border: 1px solid #30363d;
+    border-radius: 999px;
+    padding: 1px 6px;
+    color: #8b949e;
+    background: #0d1117;
+  }
+  .task-desc {
+    font-size: 11px;
+    color: #8b949e;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .task-expanded {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #30363d;
+    display: grid;
+    gap: 6px;
+  }
+  .task-expanded .detail {
+    font-size: 11px;
+    color: #c9d1d9;
+    line-height: 1.4;
+  }
+  .integration-notes {
+    border: 1px solid #1f6feb;
+    background: #0f1e35;
+    color: #9ecbff;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 11px;
+  }
+  .dependency-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .dependency-badge {
+    font-size: 10px;
+    color: #a5b4fc;
+    border: 1px solid #4c1d95;
+    background: #1f1037;
+    border-radius: 6px;
+    padding: 1px 5px;
+  }
+  .task-actions {
+    display: flex;
+    gap: 5px;
+  }
+  .btn-mini {
+    flex: 1;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+    font-size: 10px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn-mini:hover { background: #30363d; }
+  .btn-mini.discuss {
+    border-color: #238636;
+    color: #7ee787;
+    background: #0f2415;
+  }
+  .jobs-panel {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #30363d;
+  }
+  .job-trigger {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .job-item {
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 6px;
+    background: #0d1117;
+    margin-bottom: 6px;
+  }
+  .job-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    font-size: 11px;
+    color: #c9d1d9;
+    margin-bottom: 4px;
+  }
+  .job-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  .job-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .job-dot.queued { background: #f2cc60; }
+  .job-dot.running { background: #58a6ff; animation: pulse 1.2s infinite; }
+  .job-dot.completed { background: #3fb950; }
+  .job-dot.failed { background: #f85149; }
+  @keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+  }
+  .job-meta { font-size: 10px; color: #8b949e; }
+  .dashboard-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .dashboard-card h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #8b949e;
+    margin-bottom: 7px;
+  }
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .status-chip {
+    font-size: 10px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #161b22;
+    color: #c9d1d9;
+    padding: 5px 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .decision-item {
+    border-top: 1px solid #21262d;
+    padding-top: 6px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #c9d1d9;
+    line-height: 1.35;
+  }
+  .participant-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .participant-toggle:hover { background: #21262d; }
+  .participant-toggle.active { background: #1c2333; }
+  .participant-toggle .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.3;
+    transition: opacity 0.15s;
+  }
+  .participant-toggle.active .dot { opacity: 1; }
+  .participant-toggle .info { flex: 1; min-width: 0; }
+  .participant-toggle .pname { font-size: 13px; font-weight: 500; color: #c9d1d9; }
+  .participant-toggle .ptype { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .toggle-switch {
+    width: 32px; height: 18px;
+    background: #30363d; border-radius: 9px;
+    position: relative; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .participant-toggle.active .toggle-switch { background: #238636; }
+  .toggle-switch::after {
+    content: '';
+    width: 14px; height: 14px;
+    background: #e6edf3;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: transform 0.15s;
+  }
+  .participant-toggle.active .toggle-switch::after { transform: translateX(14px); }
+  /* Chat area */
+  #chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .message {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.5;
+    font-size: 14px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message.user {
+    align-self: flex-end;
+    background: #1f6feb;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .message.assistant {
+    align-self: flex-start;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-bottom-left-radius: 4px;
+  }
+  .message.discussion {
+    border-left: 3px solid #8b5cf6;
+    margin-left: 16px;
+    max-width: 80%;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .message.final-answer {
+    max-width: 95%;
+    background: #0c1a0e;
+    border: 2px solid #238636;
+    border-left: 5px solid #fbbf24;
+    font-size: 15px;
+    padding: 16px 20px;
+  }
+  .message .sender {
+    font-size: 12px; font-weight: 600;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .message .sender .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; display: inline-block;
+  }
+  .badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-agent { background: #238636; color: #fff; }
+  .badge-model { background: #30363d; color: #8b949e; }
+  .badge-synthesis { background: #fbbf24; color: #000; }
+  .message .content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .message .content code {
+    background: #0d1117; padding: 2px 6px;
+    border-radius: 4px; font-size: 13px;
+  }
+  .message .content pre {
+    background: #0d1117; padding: 12px;
+    border-radius: 8px; overflow-x: auto; margin: 8px 0;
+  }
+  .message .refs {
+    font-size: 11px; color: #8b949e;
+    margin-top: 4px; font-style: italic;
+  }
+  .thinking-indicator {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; font-size: 13px; color: #8b949e;
+    animation: fadeIn 0.3s ease;
+  }
+  .thinking-dots { display: flex; gap: 4px; }
+  .thinking-dots span {
+    width: 6px; height: 6px; border-radius: 50%;
+    animation: bounce 1.4s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(1) { animation-delay: 0s; }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40% { transform: translateY(-8px); opacity: 1; }
+  }
+  /* Round separator */
+  .round-separator {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 0; margin: 2px 0;
+    color: #8b949e; font-size: 12px;
+    animation: fadeIn 0.3s ease;
+  }
+  .round-separator .line { flex: 1; height: 1px; background: #30363d; }
+  .round-separator .label {
+    background: #21262d; padding: 4px 12px;
+    border-radius: 12px; white-space: nowrap;
+    border: 1px solid #30363d; font-weight: 500;
+  }
+  .round-separator.final .label {
+    background: #1a1a00; border-color: #fbbf24; color: #fbbf24;
+  }
+  /* Deliberation banner */
+  .deliberation-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    border-radius: 8px; font-size: 13px;
+    animation: fadeIn 0.3s ease;
+  }
+  .deliberation-banner.start {
+    background: #0c1a2e; border: 1px solid #1f6feb; color: #58a6ff;
+  }
+  .deliberation-banner.end {
+    background: #0c1a0e; border: 1px solid #238636; color: #3fb950;
+  }
+  .directed-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    background: #1c1c3a; border: 1px solid #5b21b6;
+    border-radius: 8px; font-size: 13px;
+    color: #a78bfa; animation: fadeIn 0.3s ease;
+  }
+  /* Input area */
+  #input-area {
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    padding: 16px 20px;
+    display: flex; gap: 10px;
+    position: relative;
+    align-items: flex-end;
+  }
+  #input-area textarea {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    min-height: 48px; max-height: 120px;
+    line-height: 1.4;
+  }
+  #input-area textarea:focus { outline: none; border-color: #58a6ff; }
+  .btn-send {
+    background: #238636; color: white; border: none;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-send:hover { background: #2ea043; }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-discuss {
+    background: #21262d; border: 1px solid #30363d;
+    color: #c9d1d9; padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; cursor: pointer; white-space: nowrap;
+  }
+  .btn-discuss:hover { background: #30363d; }
+  .active-count {
+    background: #238636; color: white;
+    font-size: 11px; padding: 2px 7px;
+    border-radius: 10px; font-weight: 600;
+  }
+  /* Max rounds control */
+  .rounds-control {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #8b949e;
+  }
+  .rounds-control select {
+    background: #21262d; color: #c9d1d9;
+    border: 1px solid #30363d; border-radius: 4px;
+    padding: 2px 4px; font-size: 12px;
+  }
+  /* @mention popup */
+  #mention-popup {
+    display: none; position: absolute; bottom: 100%;
+    left: 0; right: 0; max-height: 200px;
+    overflow-y: auto; background: #161b22;
+    border: 1px solid #30363d; border-radius: 8px;
+    margin-bottom: 4px; z-index: 20;
+  }
+  #mention-popup .mention-item {
+    padding: 8px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px;
+  }
+  #mention-popup .mention-item:hover,
+  #mention-popup .mention-item.selected { background: #21262d; }
+  #mention-popup .mention-item .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  /* Stop/Pause/Resume buttons */
+  .btn-stop {
+    background: #da3633; color: white; border: none;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-stop:hover:not(:disabled) { background: #f85149; }
+  .btn-stop:disabled { background: #3d1a1a; color: #6e3630; cursor: not-allowed; }
+  .btn-pause {
+    background: #9e6a03; color: white; border: none;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-pause:hover:not(:disabled) { background: #bb8009; }
+  .btn-pause:disabled { background: #2a1f00; color: #6e5a1a; cursor: not-allowed; }
+  .btn-pause.resumed { background: #238636; }
+  .btn-pause.resumed:hover { background: #2ea043; }
+  /* Error messages */
+  .message.error-msg {
+    border: 1px solid #da3633;
+    border-left: 4px solid #da3633;
+    background: #1a0d0d;
+  }
+  .message.error-msg .content { color: #f85149; }
+  /* Paused banner */
+  .paused-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    background: #2a1a00; border: 1px solid #9e6a03;
+    border-radius: 8px; font-size: 13px;
+    color: #e3b341; animation: fadeIn 0.3s ease;
+  }
+  /* Stopped banner */
+  .stopped-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    background: #1a0d0d; border: 1px solid #da3633;
+    border-radius: 8px; font-size: 13px;
+    color: #f85149; animation: fadeIn 0.3s ease;
+  }
+  /* Apply edit button on messages */
+  .btn-apply {
+    background: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    margin-top: 6px;
+    transition: all 0.15s;
+  }
+  .btn-apply:hover { background: #30363d; color: #58a6ff; border-color: #58a6ff; }
+  /* Edit proposal banner */
+  .edit-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    border-radius: 8px; font-size: 13px;
+    animation: fadeIn 0.3s ease;
+  }
+  .edit-banner.proposed {
+    background: #1c1a2e; border: 1px solid #7c3aed; color: #a78bfa;
+  }
+  .edit-banner.running {
+    background: #1a1a00; border: 1px solid #9e6a03; color: #e3b341;
+  }
+  .edit-banner.applied {
+    background: #0c1a0e; border: 1px solid #238636; color: #3fb950;
+  }
+  .edit-banner.failed {
+    background: #1a0d0d; border: 1px solid #da3633; color: #f85149;
+  }
+  .edit-banner .edit-actions { margin-left: auto; display: flex; gap: 6px; }
+  .edit-banner .btn-approve {
+    background: #238636; color: white; border: none;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .edit-banner .btn-approve:hover { background: #2ea043; }
+  .edit-banner .btn-reject {
+    background: #da3633; color: white; border: none;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .edit-banner .btn-reject:hover { background: #f85149; }
+  .edit-banner select {
+    background: #21262d; color: #c9d1d9;
+    border: 1px solid #30363d; border-radius: 4px;
+    padding: 3px 6px; font-size: 12px;
+  }
+  .edit-banner input.edit-reason {
+    background: #0d1117; color: #e6edf3;
+    border: 1px solid #30363d; border-radius: 4px;
+    padding: 3px 8px; font-size: 12px; flex: 1;
+    min-width: 120px;
+  }
+  .edit-banner input.edit-reason::placeholder { color: #484f58; }
+  /* Preset bar */
+  #preset-bar {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 8px 20px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #preset-bar .preset-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .preset-btn {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 4px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { background: #30363d; border-color: #58a6ff; color: #58a6ff; }
+  .preset-btn .preset-desc {
+    color: #8b949e;
+    font-size: 10px;
+    margin-left: 4px;
+  }
+  /* Developer Bar */
+  #dev-bar {
+    background: #0d1117;
+    border-top: 2px solid #f0883e;
+    display: flex;
+    flex-direction: column;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  #dev-bar.open { max-height: 50vh; }
+  #dev-bar-toggle {
+    background: #21262d;
+    color: #f0883e;
+    border: 1px solid #f0883e;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  #dev-bar-toggle:hover { background: #30363d; }
+  #dev-bar-toggle.active { background: #f0883e; color: #0d1117; }
+  #dev-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    flex-shrink: 0;
+  }
+  #dev-bar-header .dev-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f0883e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #dev-bar-header select {
+    background: #21262d;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  #dev-bar-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100px;
+  }
+  .dev-msg {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 90%;
+  }
+  .dev-msg.user {
+    align-self: flex-end;
+    background: #1f4a2d;
+    color: #7ee787;
+    border-bottom-right-radius: 2px;
+  }
+  .dev-msg.assistant {
+    align-self: flex-start;
+    background: #1c1a2e;
+    border: 1px solid #7c3aed;
+    border-bottom-left-radius: 2px;
+  }
+  .dev-msg .dev-sender {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f0883e;
+    margin-bottom: 4px;
+  }
+  .dev-msg .dev-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .dev-msg .dev-content code {
+    background: #0d1117;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .dev-msg .dev-content pre {
+    background: #0d1117;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 6px 0;
+    font-size: 12px;
+  }
+  .dev-msg .dev-actions {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+  }
+  .dev-msg .btn-dev-apply {
+    background: #238636;
+    color: white;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .dev-msg .btn-dev-apply:hover { background: #2ea043; }
+  #dev-bar-input {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    flex-shrink: 0;
+    align-items: flex-end;
+  }
+  #dev-bar-input textarea {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: none;
+    min-height: 36px;
+    max-height: 100px;
+    line-height: 1.4;
+  }
+  #dev-bar-input textarea:focus { outline: none; border-color: #f0883e; }
+  .btn-dev-send {
+    background: #f0883e;
+    color: #0d1117;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-dev-send:hover { background: #f59e0b; }
+  .btn-dev-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-dev-clear {
+    background: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-dev-clear:hover { background: #30363d; }
+  .dev-thinking {
+    font-size: 12px;
+    color: #f0883e;
+    padding: 6px 12px;
+    animation: fadeIn 0.3s ease;
+  }
+  .dev-edit-status {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin: 4px 0;
+  }
+  .dev-edit-status.running { background: #1a1a00; border: 1px solid #9e6a03; color: #e3b341; }
+  .dev-edit-status.applied { background: #0c1a0e; border: 1px solid #238636; color: #3fb950; }
+  .dev-edit-status.failed { background: #1a0d0d; border: 1px solid #da3633; color: #f85149; }
+  /* Add Persona */
+  .persona-section {
+    border-top: 1px solid #30363d;
+    padding-top: 12px;
+    margin-top: 8px;
+  }
+  .persona-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #f0883e;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+  .persona-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 4px;
+  }
+  .persona-form input {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+  }
+  .persona-form input:focus { outline: none; border-color: #f0883e; }
+  .persona-form input::placeholder { color: #484f58; }
+  .persona-form select {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    width: 100%;
+  }
+  .persona-form .model-hint {
+    font-size: 10px;
+    color: #f0883e;
+    padding: 2px 4px;
+    min-height: 14px;
+  }
+  .btn-research {
+    background: #f0883e;
+    color: #0d1117;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+  }
+  .btn-research:hover { background: #f59e0b; }
+  .btn-research:disabled { opacity: 0.5; cursor: not-allowed; }
+  .persona-status {
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .persona-status.researching {
+    background: #1a1a00;
+    border: 1px solid #9e6a03;
+    color: #e3b341;
+  }
+  .persona-status.success {
+    background: #0c1a0e;
+    border: 1px solid #238636;
+    color: #3fb950;
+  }
+  .persona-status.error {
+    background: #1a0d0d;
+    border: 1px solid #da3633;
+    color: #f85149;
+  }
+  /* Researched persona badge */
+  .badge-persona { background: #f0883e; color: #0d1117; }
+  .participant-toggle .btn-remove {
+    width: 18px; height: 18px;
+    background: none; border: none;
+    color: #da3633; cursor: pointer;
+    font-size: 14px; line-height: 18px;
+    padding: 0; flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .participant-toggle:hover .btn-remove { opacity: 1; }
+  .participant-toggle .btn-remove:hover { color: #f85149; }
+  /* Persona added banner in chat */
+  .persona-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; margin: 4px 0;
+    border-radius: 8px; font-size: 13px;
+    animation: fadeIn 0.3s ease;
+  }
+  .persona-banner.researching {
+    background: #1a1a00; border: 1px solid #9e6a03; color: #e3b341;
+  }
+  .persona-banner.added {
+    background: #1c1017; border: 1px solid #f0883e; color: #f0883e;
+  }
+  .persona-banner.error {
+    background: #1a0d0d; border: 1px solid #da3633; color: #f85149;
+  }
+  #company-nav { display: flex; gap: 0; background: #010409; border-bottom: 1px solid #30363d; font-size: 12px; overflow-x: auto; }
+  #company-nav a { padding: 8px 16px; color: #8b949e; text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+  #company-nav a:hover { color: #e6edf3; background: #161b22; }
+  #company-nav a.active { color: #fbbf24; border-bottom-color: #fbbf24; background: #1a1700; font-weight: 600; }
+</style>
+</head>
+<body>
+<nav id="company-nav">
+  <a href="/" class="active">Holding Board</a>
+  <a href="http://192.168.50.23:8131">MeshTech</a>
+  <a href="http://192.168.50.23:8132">MeshMedia</a>
+  <a href="http://192.168.50.23:8133">MeshCapital</a>
+  <a href="http://192.168.50.23:8134">MeshVentures</a>
+</nav>
+<header>
+  <h1>Holding Company</h1>
+  <div class="controls">
+    <div class="rounds-control">
+      <label>Max rounds:</label>
+      <select id="max-rounds" onchange="setMaxRounds(this.value)">
+        <option value="0" selected>Unlimited</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+      </select>
+    </div>
+    <button class="btn" onclick="toggleSidebar()">Participants</button>
+    <button class="btn" onclick="downloadMinutes()">Minutes</button>
+    <button class="btn" onclick="clearChat()">Clear</button>
+    <button id="dev-bar-toggle" onclick="toggleDevBar()">Dev Bar</button>
+  </div>
+</header>
+<div id="preset-bar">
+  <span class="preset-label">Teams:</span>
+</div>
+<div class="main-area">
+  <div id="sidebar">
+    <div id="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="participants" onclick="switchSidebarTab('participants')">People</button>
+      <button class="sidebar-tab" data-tab="tasks" onclick="switchSidebarTab('tasks')">Tasks</button>
+      <button class="sidebar-tab" data-tab="dashboard" onclick="switchSidebarTab('dashboard')">Dashboard</button>
+    </div>
+
+    <div id="sidebar-panel-participants" class="sidebar-panel active">
+      <div id="participants-panel"></div>
+    </div>
+
+    <div id="sidebar-panel-tasks" class="sidebar-panel">
+      <div class="sidebar-section">
+        <h3>Project</h3>
+        <select id="project-selector" class="project-select" onchange="onProjectChange(this.value)"></select>
+        <div id="project-meta" class="project-meta"></div>
+      </div>
+      <div class="sidebar-section">
+        <h3>Task Board</h3>
+        <div class="task-controls">
+          <button class="btn-wide primary" onclick="toggleTaskForm()">New Task</button>
+          <button class="btn-wide" onclick="loadTaskBoard()">Refresh Board</button>
+        </div>
+        <form id="task-form" class="task-form" onsubmit="submitTask(event)">
+          <input id="task-title" type="text" placeholder="Task title" required>
+          <textarea id="task-description" placeholder="Description" required></textarea>
+          <div class="task-form-grid">
+            <select id="task-priority"></select>
+            <select id="task-language">
+              <option value="">Language (optional)</option>
+              <option value="python">Python</option>
+              <option value="typescript">TypeScript</option>
+              <option value="swift">Swift</option>
+              <option value="kotlin">Kotlin</option>
+              <option value="rust">Rust</option>
+            </select>
+          </div>
+          <div class="task-form-grid">
+            <select id="task-team" onchange="onTeamSelected(this.value)"></select>
+            <input id="task-assignee" type="text" placeholder="Assignee (optional)">
+          </div>
+          <input id="task-depends-on" type="text" placeholder="Depends on task IDs (comma-separated)">
+          <textarea id="task-integration-notes" placeholder="Integration notes (optional)"></textarea>
+          <div id="team-preview" class="team-preview">Select a team preset to preview activated participants.</div>
+          <div class="task-form-actions">
+            <button type="button" class="btn-mini" onclick="assembleTeam()">Assemble Team</button>
+            <button type="submit" class="btn-mini discuss">Create</button>
+          </div>
+        </form>
+        <div id="task-board" class="kanban-board"></div>
+      </div>
+      <div class="sidebar-section jobs-panel">
+        <h3>Jobs</h3>
+        <div class="job-trigger">
+          <select id="job-type-select">
+            <option value="strategy-session">strategy-session</option>
+            <option value="build-business">build-business</option>
+            <option value="market-research">market-research</option>
+          </select>
+          <button class="btn-mini" onclick="triggerJob()">Trigger</button>
+        </div>
+        <div id="jobs-list"></div>
+      </div>
+    </div>
+
+    <div id="sidebar-panel-dashboard" class="sidebar-panel">
+      <div class="sidebar-section">
+        <h3>Summary</h3>
+        <div id="dashboard-content"></div>
+      </div>
+    </div>
+  </div>
+  <div id="chat-area">
+    <div id="chat"></div>
+    <div id="input-area">
+      <div id="mention-popup"></div>
+      <textarea id="input" placeholder="Give an instruction... AIs will deliberate and give you one answer. Use @Name @Name for targeted discussion." rows="1"
+        onkeydown="handleInputKeydown(event)" oninput="handleMentionInput()"></textarea>
+      <button onclick="requestCrosstalk()" class="btn-discuss" id="btn-debate" title="Trigger another round of debate">More debate</button>
+      <button onclick="requestStop()" class="btn-stop" id="btn-stop" title="Stop deliberation">Stop</button>
+      <button onclick="requestPauseResume()" class="btn-pause" id="btn-pause" title="Pause deliberation">Pause</button>
+      <button onclick="send()" class="btn-send" id="btn-send">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="dev-bar">
+  <div id="dev-bar-header">
+    <span class="dev-label">Developer Bar</span>
+    <select id="dev-model">
+      <option value="claude-opus-4-6">Claude Opus</option>
+      <option value="claude-sonnet-4-5">Claude Sonnet</option>
+      <option value="grok-4-1-fast-reasoning">Grok 4.1</option>
+      <option value="grok-3">Grok 3</option>
+      <option value="deepseek-chat">DeepSeek</option>
+    </select>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:#8b949e">Safe edits: lines are commented out, never deleted</span>
+    <button class="btn-dev-clear" onclick="clearDevBar()">Clear</button>
+  </div>
+  <div id="dev-bar-chat"></div>
+  <div id="dev-bar-input">
+    <textarea id="dev-input" placeholder="Talk directly to an AI about this app's code... ask questions or request changes" rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();devSend()}"
+      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+    <button onclick="devSend()" class="btn-dev-send" id="btn-dev-send">Send</button>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const sidebar = document.getElementById('sidebar');
+const participantsPanel = document.getElementById('participants-panel');
+const btnSend = document.getElementById('btn-send');
+const btnStop = document.getElementById('btn-stop');
+const btnPause = document.getElementById('btn-pause');
+const btnDebate = document.getElementById('btn-debate');
+const mentionPopup = document.getElementById('mention-popup');
+const projectSelector = document.getElementById('project-selector');
+const projectMeta = document.getElementById('project-meta');
+const taskForm = document.getElementById('task-form');
+const taskBoard = document.getElementById('task-board');
+const jobsList = document.getElementById('jobs-list');
+const dashboardContent = document.getElementById('dashboard-content');
+let ws;
+let thinkingEls = {};
+let participants = [];
+let mentionIndex = -1;
+let mentionFiltered = [];
+let isDeliberating = false;
+let isPaused = false;
+let presets = {};
+let statsTimer;
+let sidebarTab = 'participants';
+let projects = [];
+let activeProject = null;
+let tasks = [];
+let jobs = [];
+let dashboard = null;
+let expandedTaskId = null;
+let jobsTimer;
+const TASK_STATUSES = ['backlog', 'assigned', 'in_progress', 'review', 'done', 'blocked'];
+const TASK_PRIORITIES = ['critical', 'high', 'medium', 'low'];
+const TEAM_PRESETS = {
+  'backend-team': {
+    description: 'Python/FastAPI backend development',
+    members: ['Tech Lead', 'Backend Dev', 'Database Architect', 'Security Engineer', 'QA Engineer'],
+  },
+  'frontend-team': {
+    description: 'Next.js/TypeScript frontend development',
+    members: ['Tech Lead', 'Frontend Dev', 'UI/UX Designer', 'UX Psychologist', 'QA Engineer'],
+  },
+  'mobile-team': {
+    description: 'iOS (Swift) + Android (Kotlin) mobile apps',
+    members: ['Tech Lead', 'Mobile Dev', 'iOS Dev', 'Android Dev', 'UI/UX Designer', 'QA Engineer'],
+  },
+  'devops-team': {
+    description: 'Infrastructure, deployment, CI/CD',
+    members: ['Tech Lead', 'DevOps', 'Security Engineer', 'Database Architect'],
+  },
+  'sales-team': {
+    description: 'Sales strategy, funnels, outreach',
+    members: ['Sales Director', 'Copywriter', 'SEO Specialist', 'Persuasion Expert', 'Market Researcher'],
+  },
+  'marketing-team': {
+    description: 'Content, social media, brand',
+    members: ['Creative Director', 'Copywriter', 'Social Media', 'SEO Specialist', 'UX Psychologist'],
+  },
+  'finance-team': {
+    description: 'Budget, pricing, P&L, compliance',
+    members: ['CFO', 'Accountant', 'Tax Strategist', 'Risk Manager', 'Compliance'],
+  },
+  'qa-team': {
+    description: 'Testing, quality assurance, security audit',
+    members: ['QA Engineer', 'QA Tester', 'Security Engineer', 'DevOps'],
+  },
+  leadership: {
+    description: 'Executive review',
+    members: ['CEO', 'CTO', 'CFO', 'COO', 'Chief of Staff', 'Project Planner'],
+  },
+  'full-company': {
+    description: 'All hands for major milestones',
+    members: ['CEO', 'CTO', 'CFO', 'COO', 'Chief of Staff', 'Tech Lead', 'Backend Dev', 'Frontend Dev', 'Mobile Dev', 'DevOps', 'Sales Director', 'Copywriter', 'Market Researcher', 'QA Engineer', 'Risk Manager', "Devil's Advocate"],
+  },
+};
+
+function toggleSidebar() {
+  sidebar.classList.toggle('hidden');
+}
+
+function renderSidebar() {
+  const models = participants.filter(p => p.type === 'model');
+  const builtinAgents = participants.filter(p => p.type === 'agent' && !p.researched);
+  const personas = participants.filter(p => p.researched);
+
+  participantsPanel.textContent = '';
+
+  function createSection(title, items, showRemove) {
+    const section = document.createElement('div');
+    section.className = 'sidebar-section';
+    const h3 = document.createElement('h3');
+    h3.textContent = title + ' ';
+    const count = document.createElement('span');
+    count.className = 'active-count';
+    count.textContent = items.filter(i => i.enabled).length;
+    h3.appendChild(count);
+    section.appendChild(h3);
+
+    items.forEach(p => {
+      const toggle = document.createElement('div');
+      toggle.className = 'participant-toggle' + (p.enabled ? ' active' : '');
+      toggle.onclick = (e) => {
+        if (e.target.classList.contains('btn-remove')) return;
+        toggleParticipant(p.name);
+      };
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = p.color;
+      toggle.appendChild(dot);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      const pname = document.createElement('div');
+      pname.className = 'pname';
+      pname.textContent = p.name;
+      const ptype = document.createElement('div');
+      ptype.className = 'ptype';
+      ptype.textContent = p.researched ? 'persona · ' + p.id : p.id;
+      info.appendChild(pname);
+      info.appendChild(ptype);
+      toggle.appendChild(info);
+
+      if (showRemove) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove';
+        removeBtn.textContent = '\u00d7';
+        removeBtn.title = 'Remove persona';
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          removePersona(p.name);
+        };
+        toggle.appendChild(removeBtn);
+      }
+
+      const sw = document.createElement('div');
+      sw.className = 'toggle-switch';
+      toggle.appendChild(sw);
+
+      section.appendChild(toggle);
+    });
+    return section;
+  }
+
+  participantsPanel.appendChild(createSection('AI Models', models, false));
+  if (personas.length > 0) {
+    participantsPanel.appendChild(createSection('Personas', personas, true));
+  }
+  participantsPanel.appendChild(createSection('Agents', builtinAgents, false));
+
+  const statsSection = document.createElement('div');
+  statsSection.className = 'sidebar-section';
+  statsSection.id = 'model-stats-section';
+  const statsTitle = document.createElement('h3');
+  statsTitle.textContent = 'Model Stats';
+  statsSection.appendChild(statsTitle);
+  const statsBody = document.createElement('div');
+  statsBody.id = 'model-stats-body';
+  statsBody.className = 'stats-body';
+  statsBody.textContent = 'Loading...';
+  statsSection.appendChild(statsBody);
+  participantsPanel.appendChild(statsSection);
+
+  // Add Persona form
+  const personaSection = document.createElement('div');
+  personaSection.className = 'sidebar-section persona-section';
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Add Real Person';
+  personaSection.appendChild(h3);
+
+  const form = document.createElement('div');
+  form.className = 'persona-form';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.id = 'persona-name';
+  nameInput.placeholder = 'e.g., Elon Musk, Tony Robbins...';
+  nameInput.oninput = () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type: 'suggest_model', person: nameInput.value}));
+    }
+  };
+  form.appendChild(nameInput);
+
+  const hint = document.createElement('div');
+  hint.className = 'model-hint';
+  hint.id = 'persona-model-hint';
+  form.appendChild(hint);
+
+  const modelSelect = document.createElement('select');
+  modelSelect.id = 'persona-model';
+  [
+    ['claude-opus-4-6', 'Claude Opus (best general)'],
+    ['gpt-5.2', 'GPT-5.2 (best for coding/creative)'],
+    ['gpt-5-mini', 'GPT-5 Mini (fast/cheap)'],
+    ['o3', 'O3 (deep reasoning)'],
+    ['grok-4-1-fast-reasoning', 'Grok 4.1 (best for tech/Elon)'],
+    ['grok-3', 'Grok 3'],
+    ['deepseek-chat', 'DeepSeek (best for tech/China)'],
+    ['claude-sonnet-4-5', 'Claude Sonnet (fast)'],
+  ].forEach(([val, label]) => {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = label;
+    modelSelect.appendChild(opt);
+  });
+  form.appendChild(modelSelect);
+
+  const researchBtn = document.createElement('button');
+  researchBtn.className = 'btn-research';
+  researchBtn.id = 'btn-research';
+  researchBtn.textContent = 'Research & Add';
+  researchBtn.onclick = () => researchPersona();
+  form.appendChild(researchBtn);
+
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'persona-status';
+  form.appendChild(statusDiv);
+
+  personaSection.appendChild(form);
+  participantsPanel.appendChild(personaSection);
+}
+
+function switchSidebarTab(tab) {
+  sidebarTab = tab;
+  document.querySelectorAll('.sidebar-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.querySelectorAll('.sidebar-panel').forEach((panel) => panel.classList.remove('active'));
+  const panel = document.getElementById('sidebar-panel-' + tab);
+  if (panel) panel.classList.add('active');
+  if (tab === 'tasks') {
+    loadProjects();
+    loadTaskBoard();
+    loadJobs();
+  } else if (tab === 'dashboard') {
+    loadDashboard();
+  }
+}
+
+function normalizeProjectList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.projects)) return data.projects;
+  if (data && typeof data === 'object') return Object.values(data);
+  return [];
+}
+
+function normalizeTaskList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.tasks)) return data.tasks;
+  if (data && typeof data === 'object') return Object.values(data);
+  return [];
+}
+
+function normalizeTaskBoard(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (data.board && typeof data.board === 'object') return data.board;
+  if (TASK_STATUSES.some((k) => Array.isArray(data[k]))) return data;
+  return null;
+}
+
+function normalizeJobs(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.jobs)) return data.jobs;
+  return [];
+}
+
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error('Request failed: ' + res.status);
+  return res.json();
+}
+
+function renderProjectSelector() {
+  projectSelector.textContent = '';
+  if (!projects.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No projects';
+    projectSelector.appendChild(opt);
+    projectMeta.textContent = 'No project data available.';
+    return;
+  }
+  projects.forEach((project) => {
+    const opt = document.createElement('option');
+    opt.value = project.code;
+    opt.textContent = project.name || project.code;
+    if ((activeProject && activeProject.code === project.code) || (!activeProject && project.active)) {
+      opt.selected = true;
+      activeProject = project;
+    }
+    projectSelector.appendChild(opt);
+  });
+  if (!activeProject) activeProject = projects[0];
+  projectSelector.value = activeProject.code;
+  renderProjectMeta();
+}
+
+function renderProjectMeta() {
+  if (!activeProject) {
+    projectMeta.textContent = 'No active project selected.';
+    return;
+  }
+  projectMeta.textContent = '';
+  const name = document.createElement('div');
+  name.className = 'project-name';
+  name.textContent = activeProject.name || activeProject.code;
+  projectMeta.appendChild(name);
+  const stack = document.createElement('div');
+  stack.className = 'project-stack';
+  (activeProject.tech_stack || []).forEach((tech) => {
+    const badge = document.createElement('span');
+    badge.className = 'tech-badge';
+    badge.textContent = tech;
+    stack.appendChild(badge);
+  });
+  if (!(activeProject.tech_stack || []).length) {
+    const badge = document.createElement('span');
+    badge.className = 'tech-badge';
+    badge.textContent = 'no-tech-stack';
+    stack.appendChild(badge);
+  }
+  projectMeta.appendChild(stack);
+  populateTaskFormDefaults();
+}
+
+function populateTaskFormDefaults() {
+  const prioritySelect = document.getElementById('task-priority');
+  if (prioritySelect && prioritySelect.children.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Priority';
+    placeholder.disabled = true;
+    prioritySelect.appendChild(placeholder);
+    TASK_PRIORITIES.forEach((priority) => {
+      const opt = document.createElement('option');
+      opt.value = priority;
+      opt.textContent = priority;
+      prioritySelect.appendChild(opt);
+    });
+    prioritySelect.value = 'medium';
+  }
+
+  const teamSelect = document.getElementById('task-team');
+  if (teamSelect && teamSelect.children.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Team preset (optional)';
+    teamSelect.appendChild(placeholder);
+    Object.keys(TEAM_PRESETS).forEach((team) => {
+      const opt = document.createElement('option');
+      opt.value = team;
+      opt.textContent = team;
+      teamSelect.appendChild(opt);
+    });
+  }
+}
+
+async function loadProjects() {
+  try {
+    const data = await fetchJson('/api/projects');
+    projects = normalizeProjectList(data);
+    const explicitActive = projects.find((p) => p.active);
+    if (explicitActive) activeProject = explicitActive;
+    if (activeProject) {
+      const updated = projects.find((p) => p.code === activeProject.code);
+      if (updated) activeProject = updated;
+    }
+    renderProjectSelector();
+  } catch (err) {
+    projectMeta.textContent = 'Unable to load projects.';
+  }
+}
+
+function onProjectChange(code) {
+  activeProject = projects.find((p) => p.code === code) || null;
+  renderProjectMeta();
+  loadTaskBoard();
+  loadJobs();
+  if (sidebarTab === 'dashboard') loadDashboard();
+  if (ws && ws.readyState === WebSocket.OPEN && code) {
+    ws.send(JSON.stringify({type: 'set_project', project: code}));
+  }
+}
+
+function toggleTaskForm() {
+  taskForm.classList.toggle('open');
+}
+
+function onTeamSelected(team) {
+  const preview = document.getElementById('team-preview');
+  if (!team || !TEAM_PRESETS[team]) {
+    preview.textContent = 'Select a team preset to preview activated participants.';
+    return;
+  }
+  const preset = TEAM_PRESETS[team];
+  preview.textContent = preset.description + ': ' + preset.members.join(', ');
+}
+
+function assembleTeam() {
+  const team = document.getElementById('task-team').value;
+  if (!team) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type: 'activate_preset', preset: team}));
+  }
+  addPersonaBanner('added', 'Team assembled', team + ' activated');
+}
+
+async function submitTask(event) {
+  event.preventDefault();
+  const dependsOnRaw = document.getElementById('task-depends-on').value.trim();
+  const payload = {
+    title: document.getElementById('task-title').value.trim(),
+    description: document.getElementById('task-description').value.trim(),
+    project: (activeProject && activeProject.code) || '',
+    team: document.getElementById('task-team').value || null,
+    assignee: document.getElementById('task-assignee').value.trim() || null,
+    priority: document.getElementById('task-priority').value || 'medium',
+    language: document.getElementById('task-language').value || null,
+    depends_on: dependsOnRaw ? dependsOnRaw.split(',').map((v) => v.trim()).filter(Boolean) : [],
+    integration_notes: document.getElementById('task-integration-notes').value.trim() || null,
+  };
+  try {
+    await fetchJson('/api/tasks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    taskForm.reset();
+    document.getElementById('task-priority').value = 'medium';
+    document.getElementById('team-preview').textContent = 'Select a team preset to preview activated participants.';
+    taskForm.classList.remove('open');
+    await loadTaskBoard();
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Task creation failed: ' + err.message});
+  }
+}
+
+function taskBadge(text, className = 'meta-pill') {
+  const span = document.createElement('span');
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
+function renderTaskBoard() {
+  taskBoard.textContent = '';
+  const grouped = {};
+  TASK_STATUSES.forEach((s) => {
+    grouped[s] = [];
+  });
+  tasks.forEach((task) => {
+    if (!grouped[task.status]) grouped[task.status] = [];
+    grouped[task.status].push(task);
+  });
+
+  TASK_STATUSES.forEach((status) => {
+    const col = document.createElement('div');
+    col.className = 'kanban-column';
+    col.dataset.status = status;
+
+    const header = document.createElement('div');
+    header.className = 'kanban-header';
+    const title = document.createElement('span');
+    title.textContent = status.replace('_', ' ');
+    const count = document.createElement('span');
+    count.className = 'kanban-count';
+    count.textContent = grouped[status].length;
+    header.appendChild(title);
+    header.appendChild(count);
+    col.appendChild(header);
+
+    const dropzone = document.createElement('div');
+    dropzone.className = 'kanban-dropzone';
+    dropzone.dataset.status = status;
+    dropzone.ondragover = (e) => {
+      e.preventDefault();
+      dropzone.classList.add('drag-over');
+    };
+    dropzone.ondragleave = () => dropzone.classList.remove('drag-over');
+    dropzone.ondrop = async (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      const taskId = e.dataTransfer.getData('text/task-id');
+      if (taskId) await updateTask(taskId, {status: status});
+    };
+
+    grouped[status].forEach((task) => {
+      const card = document.createElement('div');
+      card.className = 'task-card';
+      card.draggable = true;
+      card.ondragstart = (e) => e.dataTransfer.setData('text/task-id', task.task_id);
+      card.onclick = () => {
+        expandedTaskId = expandedTaskId === task.task_id ? null : task.task_id;
+        renderTaskBoard();
+      };
+
+      const topline = document.createElement('div');
+      topline.className = 'task-topline';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'task-title';
+      titleEl.textContent = task.title || task.task_id;
+      topline.appendChild(titleEl);
+      topline.appendChild(taskBadge(task.priority || 'medium', 'priority-badge priority-' + (task.priority || 'medium')));
+      card.appendChild(topline);
+
+      const meta = document.createElement('div');
+      meta.className = 'task-meta';
+      if (task.assignee) meta.appendChild(taskBadge(task.assignee));
+      if (task.language) meta.appendChild(taskBadge(task.language));
+      if (task.team) meta.appendChild(taskBadge(task.team));
+      if (task.job_id) meta.appendChild(taskBadge('job:' + task.job_id));
+      card.appendChild(meta);
+
+      const desc = document.createElement('div');
+      desc.className = 'task-desc';
+      desc.textContent = task.description || 'No description';
+      card.appendChild(desc);
+
+      const quickActions = document.createElement('div');
+      quickActions.className = 'task-actions';
+      const discussQuick = document.createElement('button');
+      discussQuick.className = 'btn-mini discuss';
+      discussQuick.textContent = 'Discuss';
+      discussQuick.onclick = async (e) => {
+        e.stopPropagation();
+        await discussTask(task.task_id);
+      };
+      quickActions.appendChild(discussQuick);
+      card.appendChild(quickActions);
+
+      if ((task.status === 'review' || task.status === 'done') && task.integration_notes) {
+        const notes = document.createElement('div');
+        notes.className = 'integration-notes';
+        notes.textContent = 'Integration: ' + task.integration_notes;
+        card.appendChild(notes);
+      }
+
+      if (expandedTaskId === task.task_id) {
+        const expanded = document.createElement('div');
+        expanded.className = 'task-expanded';
+
+        const details = document.createElement('div');
+        details.className = 'detail';
+        details.textContent = task.description || '';
+        expanded.appendChild(details);
+
+        const deps = document.createElement('div');
+        deps.className = 'dependency-list';
+        (task.depends_on || []).forEach((dep) => deps.appendChild(taskBadge('\u2192 ' + dep, 'dependency-badge')));
+        (task.blocked_by || []).forEach((dep) => deps.appendChild(taskBadge('\u26d4 ' + dep, 'dependency-badge')));
+        if ((task.depends_on || []).length || (task.blocked_by || []).length) expanded.appendChild(deps);
+
+        if (task.integration_notes && !(task.status === 'review' || task.status === 'done')) {
+          const notes = document.createElement('div');
+          notes.className = 'detail';
+          notes.textContent = 'Integration: ' + task.integration_notes;
+          expanded.appendChild(notes);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+        const discussBtn = document.createElement('button');
+        discussBtn.className = 'btn-mini discuss';
+        discussBtn.textContent = 'Discuss';
+        discussBtn.onclick = async (e) => {
+          e.stopPropagation();
+          await discussTask(task.task_id);
+        };
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'btn-mini';
+        doneBtn.textContent = 'Mark Done';
+        doneBtn.onclick = async (e) => {
+          e.stopPropagation();
+          await updateTask(task.task_id, {status: 'done'});
+        };
+        actions.appendChild(discussBtn);
+        actions.appendChild(doneBtn);
+        expanded.appendChild(actions);
+
+        card.appendChild(expanded);
+      }
+      dropzone.appendChild(card);
+    });
+
+    col.appendChild(dropzone);
+    taskBoard.appendChild(col);
+  });
+}
+
+async function loadTaskBoard() {
+  try {
+    let boardData = null;
+    const query = activeProject && activeProject.code ? '?project=' + encodeURIComponent(activeProject.code) : '';
+    try {
+      boardData = normalizeTaskBoard(await fetchJson('/api/tasks/board' + query));
+    } catch (err) {
+      boardData = null;
+    }
+    if (boardData) {
+      tasks = TASK_STATUSES.flatMap((status) => (boardData[status] || []).map((task) => ({...task, status: task.status || status})));
+    } else {
+      const data = await fetchJson('/api/tasks' + query);
+      tasks = normalizeTaskList(data);
+    }
+    renderTaskBoard();
+  } catch (err) {
+    taskBoard.textContent = 'Unable to load tasks.';
+  }
+}
+
+async function updateTask(taskId, patch) {
+  try {
+    const payload = {
+      status: patch.status ?? null,
+      assignee: patch.assignee ?? null,
+      result: patch.result ?? null,
+      integration_notes: patch.integration_notes ?? null,
+    };
+    await fetchJson('/api/tasks/' + encodeURIComponent(taskId), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    await loadTaskBoard();
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Task update failed: ' + err.message});
+  }
+}
+
+async function discussTask(taskId) {
+  try {
+    await fetchJson('/api/tasks/' + encodeURIComponent(taskId) + '/discuss', {method: 'POST'});
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Task discuss failed: ' + err.message});
+  }
+}
+
+function renderJobs() {
+  jobsList.textContent = '';
+  if (!jobs.length) {
+    jobsList.textContent = 'No recent jobs.';
+    return;
+  }
+  jobs.slice(0, 12).forEach((job) => {
+    const item = document.createElement('div');
+    item.className = 'job-item';
+
+    const head = document.createElement('div');
+    head.className = 'job-head';
+    const type = document.createElement('strong');
+    type.textContent = job.job_type || job.type || 'job';
+    head.appendChild(type);
+    const status = document.createElement('span');
+    status.className = 'job-status';
+    const s = (job.status || 'queued').toLowerCase();
+    status.innerHTML = '<span class="job-dot ' + s + '"></span>' + s;
+    head.appendChild(status);
+    item.appendChild(head);
+
+    const meta = document.createElement('div');
+    meta.className = 'job-meta';
+    meta.textContent = (job.project || '-') + (job.task_id ? ' · task ' + job.task_id : '') + (job.job_id ? ' · #' + job.job_id : '');
+    item.appendChild(meta);
+    jobsList.appendChild(item);
+  });
+}
+
+async function loadJobs() {
+  try {
+    const query = activeProject && activeProject.code ? '?project=' + encodeURIComponent(activeProject.code) : '';
+    const data = await fetchJson('/api/jobs' + query);
+    jobs = normalizeJobs(data);
+    renderJobs();
+  } catch (err) {
+    jobsList.textContent = 'Unable to load jobs.';
+  }
+}
+
+function startJobsPoll() {
+  if (jobsTimer) clearInterval(jobsTimer);
+  jobsTimer = setInterval(() => {
+    if (sidebarTab === 'tasks' || sidebarTab === 'dashboard') loadJobs();
+  }, 15000);
+}
+
+async function triggerJob() {
+  const jobType = document.getElementById('job-type-select').value;
+  const payload = {
+    job_type: jobType,
+    project: activeProject ? activeProject.code : null,
+    params: {},
+  };
+  try {
+    await fetchJson('/api/jobs/trigger', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    await loadJobs();
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Job trigger failed: ' + err.message});
+  }
+}
+
+function computeTaskCounts() {
+  const counts = {};
+  TASK_STATUSES.forEach((status) => {
+    counts[status] = 0;
+  });
+  tasks.forEach((task) => {
+    counts[task.status] = (counts[task.status] || 0) + 1;
+  });
+  return counts;
+}
+
+function renderDashboard() {
+  dashboardContent.textContent = '';
+  const counts = dashboard?.task_counts || computeTaskCounts();
+  const runningJobs = dashboard?.running_jobs || jobs.filter((j) => ['queued', 'running'].includes((j.status || '').toLowerCase())).length;
+  const decisions = dashboard?.recent_decisions || [];
+
+  const taskCard = document.createElement('div');
+  taskCard.className = 'dashboard-card';
+  taskCard.innerHTML = '<h4>Task Counts</h4>';
+  const grid = document.createElement('div');
+  grid.className = 'status-grid';
+  TASK_STATUSES.forEach((status) => {
+    const chip = document.createElement('div');
+    chip.className = 'status-chip';
+    chip.innerHTML = '<span>' + status.replace('_', ' ') + '</span><strong>' + (counts[status] || 0) + '</strong>';
+    grid.appendChild(chip);
+  });
+  taskCard.appendChild(grid);
+  dashboardContent.appendChild(taskCard);
+
+  const jobsCard = document.createElement('div');
+  jobsCard.className = 'dashboard-card';
+  jobsCard.innerHTML = '<h4>Jobs</h4><div class="status-chip"><span>active jobs</span><strong>' + runningJobs + '</strong></div>';
+  dashboardContent.appendChild(jobsCard);
+
+  const decisionsCard = document.createElement('div');
+  decisionsCard.className = 'dashboard-card';
+  decisionsCard.innerHTML = '<h4>Recent Decisions</h4>';
+  if (!decisions.length) {
+    const empty = document.createElement('div');
+    empty.className = 'status-chip';
+    empty.innerHTML = '<span>none</span><strong>0</strong>';
+    decisionsCard.appendChild(empty);
+  } else {
+    decisions.slice(0, 6).forEach((decision) => {
+      const item = document.createElement('div');
+      item.className = 'decision-item';
+      item.textContent = (decision.description || decision.action || 'Decision') + ' [' + (decision.status || 'proposed') + ']';
+      decisionsCard.appendChild(item);
+    });
+  }
+  dashboardContent.appendChild(decisionsCard);
+}
+
+async function loadDashboard() {
+  try {
+    dashboard = await fetchJson('/api/dashboard');
+  } catch (err) {
+    dashboard = null;
+  }
+  renderDashboard();
+}
+
+function startStatsPoll() {
+  if (statsTimer) clearInterval(statsTimer);
+  fetchModelStats();
+  statsTimer = setInterval(fetchModelStats, 10000);
+}
+
+function fetchModelStats() {
+  fetch('/api/model-stats')
+    .then(r => r.json())
+    .then(data => renderModelStats(data.models || {}))
+    .catch(() => renderModelStats({}));
+}
+
+function renderModelStats(models) {
+  const body = document.getElementById('model-stats-body');
+  if (!body) return;
+  body.textContent = '';
+  const entries = Object.entries(models || {}).sort((a, b) => (b[1].requests || 0) - (a[1].requests || 0));
+  if (entries.length === 0) {
+    body.textContent = 'No data yet';
+    return;
+  }
+  entries.slice(0, 12).forEach(([id, s]) => {
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+
+    const name = document.createElement('div');
+    name.className = 'stat-name';
+    name.textContent = id;
+    row.appendChild(name);
+
+    const meta = document.createElement('div');
+    meta.className = 'stat-meta';
+    const avg = s.avg_ms ? Math.round(s.avg_ms) + 'ms' : '--';
+    const errs = s.errors || 0;
+    meta.textContent = `${avg} · err ${errs}`;
+    row.appendChild(meta);
+
+    const badge = document.createElement('div');
+    badge.className = 'stat-badge';
+    badge.textContent = s.requests || 0;
+    row.appendChild(badge);
+
+    body.appendChild(row);
+  });
+}
+
+let reconnectAttempts = 0;
+
+function connect() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(protocol + '//' + location.host + '/ws');
+
+  ws.onopen = () => {
+    console.log('Connected');
+    reconnectAttempts = 0;
+    startStatsPoll();
+    startJobsPoll();
+    loadProjects().then(() => {
+      loadTaskBoard();
+      loadJobs();
+      loadDashboard();
+    });
+  };
+
+  ws.onmessage = (event) => {
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (err) {
+      console.error('Error parsing WebSocket message:', err);
+      return;
+    }
+
+    if (data.type === 'participants') {
+      participants = data.data;
+      renderSidebar();
+    } else if (data.type === 'settings') {
+      const sel = document.getElementById('max-rounds');
+      if (sel) sel.value = data.max_rounds;
+    } else if (data.type === 'presets') {
+      presets = data.data;
+      renderPresets();
+    } else if (data.type === 'deliberation_state') {
+      isDeliberating = data.data.active;
+      isPaused = data.data.paused;
+      updateControlButtons();
+    } else if (data.type === 'message') {
+      removeThinking(data.name);
+      addMessage(data);
+      if (!isDeliberating) btnSend.disabled = false;
+    } else if (data.type === 'thinking') {
+      showThinking(data.name, data.color);
+    } else if (data.type === 'round_separator') {
+      addRoundSeparator(data.round, data.label);
+    } else if (data.type === 'deliberation_start') {
+      isDeliberating = true;
+      isPaused = false;
+      updateControlButtons();
+      addDeliberationBanner(data.participants, data.task, true);
+    } else if (data.type === 'deliberation_end' || data.type === 'deliberation_complete') {
+      isDeliberating = false;
+      isPaused = false;
+      updateControlButtons();
+      btnSend.disabled = false;
+      addDeliberationBanner([], null, false);
+    } else if (data.type === 'deliberation_stopped') {
+      isDeliberating = false;
+      isPaused = false;
+      updateControlButtons();
+      btnSend.disabled = false;
+      clearAllThinking();
+      addStoppedBanner();
+    } else if (data.type === 'deliberation_paused') {
+      isPaused = true;
+      updateControlButtons();
+      btnSend.disabled = false;
+      addPausedBanner(true);
+    } else if (data.type === 'deliberation_resumed') {
+      isPaused = false;
+      updateControlButtons();
+      addPausedBanner(false);
+    } else if (data.type === 'directed_start') {
+      isDeliberating = true;
+      isPaused = false;
+      updateControlButtons();
+      addDirectedBanner(data.participants, data.topic, true);
+    } else if (data.type === 'directed_end') {
+      isDeliberating = false;
+      isPaused = false;
+      updateControlButtons();
+      btnSend.disabled = false;
+      addDirectedBanner(data.participants, null, false);
+    } else if (data.type === 'edit_proposed') {
+      addEditBanner(data.edit_id, data.sender, data.instruction, 'proposed');
+    } else if (data.type === 'edit_running') {
+      addEditBanner(data.edit_id, '', '', 'running', data.editor);
+    } else if (data.type === 'edit_applied') {
+      addEditBanner(data.edit_id, '', data.result || 'Done', 'applied', data.editor);
+    } else if (data.type === 'edit_failed') {
+      addEditBanner(data.edit_id, '', data.error || 'Unknown error', 'failed');
+    } else if (data.type === 'edit_rejected') {
+      const el = document.getElementById('edit-' + data.edit_id);
+      if (el) el.remove();
+    } else if (data.type === 'persona_researching') {
+      addPersonaBanner('researching', data.person, 'via ' + data.model);
+      updatePersonaStatus('researching', 'Researching ' + data.person + '...');
+    } else if (data.type === 'persona_added') {
+      addPersonaBanner('added', data.person, data.model);
+      updatePersonaStatus('success', data.person + ' added!');
+      resetPersonaForm();
+    } else if (data.type === 'persona_error') {
+      addPersonaBanner('error', data.person || '?', data.error);
+      updatePersonaStatus('error', data.error);
+      resetPersonaForm();
+    } else if (data.type === 'model_suggestion') {
+      const hint = document.getElementById('persona-model-hint');
+      const select = document.getElementById('persona-model');
+      if (hint && data.model !== 'claude-opus-4-6') {
+        const modelNames = {'grok-4-1-fast-reasoning': 'Grok 4.1', 'grok-3': 'Grok 3', 'deepseek-chat': 'DeepSeek'};
+        hint.textContent = 'Tip: ' + (modelNames[data.model] || data.model) + ' recommended for this person';
+        if (select) select.value = data.model;
+      } else if (hint) {
+        hint.textContent = '';
+      }
+    } else if (data.type === 'dev_bar_thinking') {
+      removeDevThinking();
+      const div = document.createElement('div');
+      div.className = 'dev-thinking';
+      div.textContent = data.model + ' is thinking...';
+      devBarChat.appendChild(div);
+      devBarChat.scrollTop = devBarChat.scrollHeight;
+    } else if (data.type === 'dev_bar_response') {
+      removeDevThinking();
+      addDevMsg('assistant', data.model, data.content, data.color, data.model_id);
+      document.getElementById('btn-dev-send').disabled = false;
+    } else if (data.type === 'dev_bar_edit_running') {
+      addDevStatus('running', 'Applying edit via ' + data.model + '...');
+    } else if (data.type === 'dev_bar_edit_applied') {
+      addDevStatus('applied', 'Edit applied by ' + data.model + '. Restart container to see changes.');
+    } else if (data.type === 'dev_bar_edit_failed') {
+      addDevStatus('failed', 'Edit failed: ' + data.error);
+    } else if (data.type === 'dev_bar_cleared') {
+      devBarChat.textContent = '';
+    } else if (data.type === 'task_created') {
+      if (data.task) {
+        tasks = tasks.filter((t) => t.task_id !== data.task.task_id);
+        tasks.push(data.task);
+      }
+      renderTaskBoard();
+      renderDashboard();
+    } else if (data.type === 'task_updated') {
+      if (data.task) {
+        const idx = tasks.findIndex((t) => t.task_id === data.task.task_id);
+        if (idx >= 0) tasks[idx] = data.task;
+        else tasks.push(data.task);
+      }
+      renderTaskBoard();
+      renderDashboard();
+    } else if (data.type === 'tasks_list') {
+      tasks = normalizeTaskList(data.tasks || []);
+      renderTaskBoard();
+      renderDashboard();
+    } else if (data.type === 'job_started') {
+      jobs = [{...data}, ...jobs.filter((j) => j.job_id !== data.job_id)];
+      renderJobs();
+      renderDashboard();
+    } else if (data.type === 'job_update') {
+      const idx = jobs.findIndex((j) => j.job_id === data.job_id);
+      if (idx >= 0) jobs[idx] = {...jobs[idx], ...data};
+      else jobs.unshift({...data});
+      renderJobs();
+      renderDashboard();
+    } else if (data.type === 'team_assembled') {
+      addPersonaBanner('added', 'Team assembled', (data.team || 'team') + ': ' + (data.members || []).join(', '));
+      const selectedTeam = document.getElementById('task-team');
+      if (selectedTeam) selectedTeam.value = data.team || selectedTeam.value;
+      if (data.team) onTeamSelected(data.team);
+    } else if (data.type === 'clear' || data.type === 'history_cleared') {
+      chat.textContent = '';
+    }
+  };
+
+  ws.onclose = () => {
+    console.log('Disconnected, attempting reconnect...');
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    reconnectAttempts++;
+    setTimeout(connect, delay);
+  };
+}
+
+function toggleParticipant(name) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type: 'toggle', name: name}));
+  }
+}
+
+function addMessage(data) {
+  const div = document.createElement('div');
+  let classes = 'message ' + data.role;
+  if (data.is_discussion) classes += ' discussion';
+  if (data.is_final) classes += ' final-answer';
+  const isError = data.content && /^\[(Error|Timeout|Connection error):/.test(data.content);
+  if (isError) classes += ' error-msg';
+  div.className = classes;
+
+  if (data.role === 'assistant') {
+    const sender = document.createElement('div');
+    sender.className = 'sender';
+
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = data.color;
+    sender.appendChild(dot);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = ' ' + data.name + ' ';
+    sender.appendChild(nameSpan);
+
+    const badge = document.createElement('span');
+    if (data.badge === 'synthesis') {
+      badge.className = 'badge badge-synthesis';
+      badge.textContent = 'Final Answer';
+    } else {
+      badge.className = 'badge ' + (data.badge === 'agent' ? 'badge-agent' : 'badge-model');
+      badge.textContent = data.badge === 'agent' ? 'Agent' : 'Model';
+    }
+    sender.appendChild(badge);
+
+    if (data.round && !data.is_final) {
+      const roundBadge = document.createElement('span');
+      roundBadge.className = 'badge';
+      roundBadge.style.cssText = 'background:#5b21b6;color:#e0d4ff;margin-left:4px';
+      roundBadge.textContent = 'R' + data.round;
+      sender.appendChild(roundBadge);
+    }
+
+    div.appendChild(sender);
+
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.innerHTML = formatContent(data.content);
+    div.appendChild(content);
+
+    if (data.references && data.references.length > 0) {
+      const refs = document.createElement('div');
+      refs.className = 'refs';
+      refs.textContent = 'Responding to ' + data.references.join(', ');
+      div.appendChild(refs);
+    }
+
+    // Add "Apply as edit" button to AI messages
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn-apply';
+    applyBtn.textContent = 'Apply as edit';
+    applyBtn.title = 'Send this response to Claude Code to edit the roundtable app';
+    applyBtn.onclick = () => proposeEdit(data.content, data.name);
+    div.appendChild(applyBtn);
+  } else {
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.textContent = data.content;
+    div.appendChild(content);
+  }
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addRoundSeparator(round, label) {
+  const div = document.createElement('div');
+  div.className = 'round-separator' + (round === 'final' ? ' final' : '');
+  const line1 = document.createElement('div');
+  line1.className = 'line';
+  const labelEl = document.createElement('span');
+  labelEl.className = 'label';
+  labelEl.textContent = label || (round === 'manual' ? 'Extra debate round' : 'Round ' + round);
+  const line2 = document.createElement('div');
+  line2.className = 'line';
+  div.appendChild(line1);
+  div.appendChild(labelEl);
+  div.appendChild(line2);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addDeliberationBanner(names, task, isStart) {
+  const div = document.createElement('div');
+  div.className = 'deliberation-banner ' + (isStart ? 'start' : 'end');
+  const strong = document.createElement('strong');
+  if (isStart) {
+    strong.textContent = 'Deliberation started: ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(names.join(', ') + ' are working on this'));
+  } else {
+    strong.textContent = 'Deliberation complete';
+    div.appendChild(strong);
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addDirectedBanner(names, topic, isStart) {
+  const div = document.createElement('div');
+  div.className = 'directed-banner';
+  const strong = document.createElement('strong');
+  strong.textContent = isStart ? 'Focused discussion: ' : 'Discussion ended: ';
+  div.appendChild(strong);
+  div.appendChild(document.createTextNode(
+    names.join(' & ') + (isStart && topic ? ' \u2014 ' + topic : '')
+  ));
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showThinking(name, color) {
+  if (thinkingEls[name]) return;
+  const div = document.createElement('div');
+  div.className = 'thinking-indicator';
+
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.cssText = 'background:' + color + ';width:8px;height:8px;border-radius:50%;display:inline-block';
+  div.appendChild(dot);
+  div.appendChild(document.createTextNode(' ' + name + ' is thinking '));
+
+  const dots = document.createElement('span');
+  dots.className = 'thinking-dots';
+  for (let i = 0; i < 3; i++) {
+    const d = document.createElement('span');
+    d.style.background = color;
+    dots.appendChild(d);
+  }
+  div.appendChild(dots);
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  thinkingEls[name] = div;
+}
+
+function removeThinking(name) {
+  if (thinkingEls[name]) {
+    thinkingEls[name].remove();
+    delete thinkingEls[name];
+  }
+}
+
+function send() {
+  const text = input.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  closeMentionPopup();
+  if (isPaused) {
+    ws.send(JSON.stringify({type: 'resume', content: text}));
+  } else {
+    ws.send(JSON.stringify({type: 'message', content: text}));
+  }
+  input.value = '';
+  input.style.height = 'auto';
+  btnSend.disabled = true;
+}
+
+function requestCrosstalk() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'crosstalk'}));
+}
+
+function setMaxRounds(val) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type: 'set_max_rounds', rounds: parseInt(val)}));
+  }
+}
+
+function clearChat() {
+  fetch('/api/clear', {method: 'POST'});
+}
+
+function downloadMinutes() {
+  fetch('/api/minutes')
+    .then(r => r.json())
+    .then(data => {
+      const blob = new Blob([data.markdown], {type: 'text/markdown'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+      a.href = url;
+      a.download = 'roundtable-minutes-' + ts + '.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+}
+
+// --- @mention autocomplete ---
+function handleInputKeydown(event) {
+  if (mentionPopup.style.display === 'block') {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      mentionIndex = Math.min(mentionIndex + 1, mentionFiltered.length - 1);
+      renderMentionPopup();
+      return;
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      mentionIndex = Math.max(mentionIndex - 1, 0);
+      renderMentionPopup();
+      return;
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      if (mentionIndex >= 0 && mentionFiltered[mentionIndex]) {
+        event.preventDefault();
+        insertMention(mentionFiltered[mentionIndex]);
+        return;
+      }
+    } else if (event.key === 'Escape') {
+      closeMentionPopup();
+      return;
+    }
+  }
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    send();
+  }
+}
+
+function handleMentionInput() {
+  const val = input.value;
+  const cursor = input.selectionStart;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+
+  const before = val.substring(0, cursor);
+  const match = before.match(/@(\w*)$/);
+  if (match) {
+    const query = match[1].toLowerCase();
+    mentionFiltered = participants.filter(p =>
+      p.name.toLowerCase().startsWith(query) || p.name.toLowerCase().includes(query)
+    ).slice(0, 8);
+    if (mentionFiltered.length > 0) {
+      mentionIndex = 0;
+      renderMentionPopup();
+      mentionPopup.style.display = 'block';
+      return;
+    }
+  }
+  closeMentionPopup();
+}
+
+function renderMentionPopup() {
+  mentionPopup.textContent = '';
+  mentionFiltered.forEach((p, i) => {
+    const item = document.createElement('div');
+    item.className = 'mention-item' + (i === mentionIndex ? ' selected' : '');
+    item.onmousedown = () => insertMention(p);
+
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = p.color;
+    item.appendChild(dot);
+
+    const name = document.createElement('span');
+    name.textContent = p.name;
+    item.appendChild(name);
+
+    const type = document.createElement('span');
+    type.style.cssText = 'color:#8b949e;font-size:11px;margin-left:auto';
+    type.textContent = p.type;
+    item.appendChild(type);
+
+    mentionPopup.appendChild(item);
+  });
+}
+
+function insertMention(participant) {
+  const val = input.value;
+  const cursor = input.selectionStart;
+  const before = val.substring(0, cursor);
+  const after = val.substring(cursor);
+  const newBefore = before.replace(/@\w*$/, '@' + participant.name + ' ');
+  input.value = newBefore + after;
+  input.selectionStart = input.selectionEnd = newBefore.length;
+  closeMentionPopup();
+  input.focus();
+}
+
+function closeMentionPopup() {
+  mentionPopup.style.display = 'none';
+  mentionIndex = -1;
+  mentionFiltered = [];
+}
+
+function renderPresets() {
+  const bar = document.getElementById('preset-bar');
+  // Keep the label, clear the rest
+  while (bar.children.length > 1) bar.removeChild(bar.lastChild);
+  Object.entries(presets).forEach(([id, preset]) => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.onclick = () => activatePreset(id);
+    btn.textContent = preset.label || preset.name;
+    const desc = document.createElement('span');
+    desc.className = 'preset-desc';
+    desc.textContent = preset.description;
+    btn.appendChild(desc);
+    bar.appendChild(btn);
+  });
+}
+
+function activatePreset(presetId) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'activate_preset', preset: presetId}));
+}
+
+function updateControlButtons() {
+  btnStop.disabled = !isDeliberating;
+  btnPause.disabled = !isDeliberating && !isPaused;
+  btnDebate.disabled = isDeliberating;
+  if (isPaused) {
+    btnPause.textContent = 'Resume';
+    btnPause.classList.add('resumed');
+    btnPause.disabled = false;
+    btnSend.disabled = false;
+    input.placeholder = 'Type to inject info, then Send to resume...';
+  } else {
+    btnPause.textContent = 'Pause';
+    btnPause.classList.remove('resumed');
+    if (isDeliberating) {
+      input.placeholder = 'Deliberation in progress...';
+    } else {
+      input.placeholder = 'Give an instruction... AIs will deliberate and give you one answer. Use @Name @Name for targeted discussion.';
+    }
+  }
+}
+
+function requestStop() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'stop'}));
+}
+
+function requestPauseResume() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (isPaused) {
+    ws.send(JSON.stringify({type: 'resume'}));
+  } else {
+    ws.send(JSON.stringify({type: 'pause'}));
+  }
+}
+
+function clearAllThinking() {
+  Object.keys(thinkingEls).forEach(name => removeThinking(name));
+}
+
+function addPausedBanner(isPaused) {
+  const div = document.createElement('div');
+  div.className = 'paused-banner';
+  const strong = document.createElement('strong');
+  strong.textContent = isPaused ? 'Deliberation paused' : 'Deliberation resumed';
+  div.appendChild(strong);
+  if (isPaused) {
+    div.appendChild(document.createTextNode(' — type a message and send to inject info'));
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addStoppedBanner() {
+  const div = document.createElement('div');
+  div.className = 'stopped-banner';
+  const strong = document.createElement('strong');
+  strong.textContent = 'Deliberation stopped';
+  div.appendChild(strong);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function proposeEdit(content, sender) {
+  fetch('/api/propose-edit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({instruction: content, sender: sender}),
+  });
+}
+
+function approveEdit(editId) {
+  const banner = document.getElementById('edit-' + editId);
+  const select = banner ? banner.querySelector('select.editor-select') : null;
+  const reasonInput = banner ? banner.querySelector('input.edit-reason') : null;
+  const model = select ? select.value : 'claude-opus-4-6';
+  const reason = reasonInput ? reasonInput.value : '';
+  fetch('/api/approve-edit/' + editId, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({editor_model: model, reason: reason}),
+  });
+}
+
+function rejectEdit(editId) {
+  fetch('/api/reject-edit/' + editId, {method: 'POST'});
+}
+
+function addEditBanner(editId, sender, instruction, status, editor) {
+  // Remove existing banner for this edit if any
+  const existing = document.getElementById('edit-' + editId);
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.className = 'edit-banner ' + status;
+  div.id = 'edit-' + editId;
+
+  const strong = document.createElement('strong');
+  if (status === 'proposed') {
+    strong.textContent = 'Edit proposed by ' + sender + ': ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(instruction));
+    div.appendChild(document.createElement('br'));
+
+    // Model selector
+    const select = document.createElement('select');
+    select.className = 'editor-select';
+    [
+      ['claude-opus-4-6', 'Claude Opus'],
+      ['claude-sonnet-4-5', 'Claude Sonnet'],
+      ['grok-3', 'Grok 3'],
+      ['grok-3-mini', 'Grok 3 Mini'],
+      ['deepseek-chat', 'DeepSeek'],
+    ].forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    div.appendChild(select);
+
+    // Reason field
+    const reasonInput = document.createElement('input');
+    reasonInput.className = 'edit-reason';
+    reasonInput.type = 'text';
+    reasonInput.placeholder = 'Why this edit?';
+    div.appendChild(reasonInput);
+
+    const actions = document.createElement('span');
+    actions.className = 'edit-actions';
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn-approve';
+    approveBtn.textContent = 'Approve';
+    approveBtn.onclick = () => approveEdit(editId);
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'btn-reject';
+    rejectBtn.textContent = 'Reject';
+    rejectBtn.onclick = () => rejectEdit(editId);
+    actions.appendChild(approveBtn);
+    actions.appendChild(rejectBtn);
+    div.appendChild(actions);
+  } else if (status === 'running') {
+    strong.textContent = 'Applying edit... ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode((editor || 'AI') + ' is making changes'));
+  } else if (status === 'applied') {
+    strong.textContent = 'Edit applied by ' + (editor || 'AI') + '! ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode('Restart container to see changes'));
+  } else if (status === 'failed') {
+    strong.textContent = 'Edit failed: ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(instruction));
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ========== Persona Research ==========
+function researchPersona() {
+  const nameInput = document.getElementById('persona-name');
+  const modelSelect = document.getElementById('persona-model');
+  const btn = document.getElementById('btn-research');
+  const name = nameInput.value.trim();
+  if (!name || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  ws.send(JSON.stringify({
+    type: 'research_persona',
+    person: name,
+    model: modelSelect.value,
+  }));
+  btn.disabled = true;
+  btn.textContent = 'Researching...';
+}
+
+function removePersona(name) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'remove_persona', name: name}));
+}
+
+function addPersonaBanner(type, person, detail) {
+  const div = document.createElement('div');
+  div.className = 'persona-banner ' + type;
+  const strong = document.createElement('strong');
+  if (type === 'researching') {
+    strong.textContent = 'Researching ' + person + '... ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(detail || 'Building persona'));
+  } else if (type === 'added') {
+    strong.textContent = person + ' joined the roundtable! ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode('Researched by ' + (detail || 'AI')));
+  } else if (type === 'error') {
+    strong.textContent = 'Failed to add ' + person + ': ';
+    div.appendChild(strong);
+    div.appendChild(document.createTextNode(detail || 'Unknown error'));
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function updatePersonaStatus(cssClass, text) {
+  const el = document.getElementById('persona-status');
+  if (!el) return;
+  el.className = 'persona-status ' + cssClass;
+  el.textContent = text;
+}
+
+function resetPersonaForm() {
+  const btn = document.getElementById('btn-research');
+  const nameInput = document.getElementById('persona-name');
+  if (btn) { btn.disabled = false; btn.textContent = 'Research & Add'; }
+  if (nameInput) nameInput.value = '';
+}
+
+// ========== Developer Bar ==========
+const devBar = document.getElementById('dev-bar');
+const devBarChat = document.getElementById('dev-bar-chat');
+const devInput = document.getElementById('dev-input');
+const devToggle = document.getElementById('dev-bar-toggle');
+const devModelSelect = document.getElementById('dev-model');
+
+function toggleDevBar() {
+  devBar.classList.toggle('open');
+  devToggle.classList.toggle('active');
+}
+
+function devSend() {
+  const text = devInput.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  const model = devModelSelect.value;
+  ws.send(JSON.stringify({type: 'dev_bar_message', model: model, content: text}));
+  addDevMsg('user', 'You', text);
+  devInput.value = '';
+  devInput.style.height = 'auto';
+  document.getElementById('btn-dev-send').disabled = true;
+}
+
+function addDevMsg(role, sender, content, color, modelId) {
+  const div = document.createElement('div');
+  div.className = 'dev-msg ' + role;
+  if (role === 'assistant') {
+    const senderEl = document.createElement('div');
+    senderEl.className = 'dev-sender';
+    senderEl.textContent = sender;
+    if (color) senderEl.style.color = color;
+    div.appendChild(senderEl);
+  }
+  const contentEl = document.createElement('div');
+  contentEl.className = 'dev-content';
+  // Use the existing formatContent which escapes HTML first, then applies safe formatting
+  contentEl.appendChild(safeFormatContent(content));
+  div.appendChild(contentEl);
+
+  // Add "Apply Edit" button to AI responses
+  if (role === 'assistant') {
+    const actions = document.createElement('div');
+    actions.className = 'dev-actions';
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn-dev-apply';
+    applyBtn.textContent = 'Apply as Safe Edit';
+    applyBtn.onclick = () => {
+      const reason = prompt('Reason for this edit (optional):') || '';
+      ws.send(JSON.stringify({
+        type: 'dev_bar_apply',
+        instruction: content,
+        model: modelId || devModelSelect.value,
+        reason: reason,
+      }));
+    };
+    actions.appendChild(applyBtn);
+    div.appendChild(actions);
+  }
+  devBarChat.appendChild(div);
+  devBarChat.scrollTop = devBarChat.scrollHeight;
+}
+
+function addDevStatus(status, text) {
+  const div = document.createElement('div');
+  div.className = 'dev-edit-status ' + status;
+  div.textContent = text;
+  devBarChat.appendChild(div);
+  devBarChat.scrollTop = devBarChat.scrollHeight;
+}
+
+function removeDevThinking() {
+  const el = devBarChat.querySelector('.dev-thinking');
+  if (el) el.remove();
+}
+
+function clearDevBar() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type: 'dev_bar_clear'}));
+  devBarChat.textContent = '';
+}
+
+// Safe content formatter that builds DOM nodes instead of setting innerHTML
+function safeFormatContent(text) {
+  const frag = document.createDocumentFragment();
+  // Split by code blocks first
+  const parts = text.split(/(```[\s\S]*?```)/g);
+  parts.forEach(part => {
+    if (part.startsWith('```') && part.endsWith('```')) {
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.textContent = part.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+      pre.appendChild(code);
+      frag.appendChild(pre);
+    } else {
+      // Handle inline code and line breaks
+      const lines = part.split('\n');
+      lines.forEach((line, i) => {
+        // Handle inline code
+        const inlineParts = line.split(/(`[^`]+`)/g);
+        inlineParts.forEach(ip => {
+          if (ip.startsWith('`') && ip.endsWith('`')) {
+            const codeEl = document.createElement('code');
+            codeEl.textContent = ip.slice(1, -1);
+            frag.appendChild(codeEl);
+          } else if (ip) {
+            // Handle bold
+            const boldParts = ip.split(/(\*\*[^*]+\*\*)/g);
+            boldParts.forEach(bp => {
+              if (bp.startsWith('**') && bp.endsWith('**')) {
+                const strong = document.createElement('strong');
+                strong.textContent = bp.slice(2, -2);
+                frag.appendChild(strong);
+              } else if (bp) {
+                frag.appendChild(document.createTextNode(bp));
+              }
+            });
+          }
+        });
+        if (i < lines.length - 1) frag.appendChild(document.createElement('br'));
+      });
+    }
+  });
+  return frag;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatContent(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+populateTaskFormDefaults();
+onTeamSelected('');
+switchSidebarTab('participants');
+connect();
+</script>
+</body>
+</html>

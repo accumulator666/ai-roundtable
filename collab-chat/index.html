@@ -57,6 +57,31 @@
     transition: margin-left 0.2s;
   }
   #sidebar.hidden { margin-left: -260px; }
+  #sidebar-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .sidebar-tab {
+    background: #0d1117;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .sidebar-tab.active {
+    color: #58a6ff;
+    border-color: #58a6ff;
+    background: #111d2f;
+  }
+  .sidebar-panel { display: none; }
+  .sidebar-panel.active { display: block; }
   .sidebar-section { margin-bottom: 16px; }
   .sidebar-section h3 {
     font-size: 11px;
@@ -71,6 +96,338 @@
   .stat-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stat-meta { color: #8b949e; font-variant-numeric: tabular-nums; }
   .stat-badge { padding: 1px 6px; border-radius: 999px; background: #21262d; border: 1px solid #30363d; }
+  .project-select {
+    width: 100%;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .project-meta {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #c9d1d9;
+    margin-bottom: 6px;
+  }
+  .project-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tech-badge {
+    font-size: 10px;
+    background: #1f2937;
+    color: #93c5fd;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 1px 6px;
+  }
+  .task-controls {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .btn-wide {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+  }
+  .btn-wide:hover { background: #30363d; }
+  .btn-wide.primary {
+    background: #1f6feb;
+    border-color: #1f6feb;
+    color: #fff;
+  }
+  .btn-wide.primary:hover { background: #388bfd; }
+  .task-form {
+    display: none;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .task-form.open { display: grid; gap: 6px; }
+  .task-form input,
+  .task-form textarea,
+  .task-form select {
+    width: 100%;
+    background: #161b22;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 7px 8px;
+    font-family: inherit;
+  }
+  .task-form textarea { min-height: 62px; resize: vertical; }
+  .task-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .task-form-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .team-preview {
+    font-size: 11px;
+    color: #8b949e;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px;
+    line-height: 1.35;
+  }
+  .kanban-board {
+    display: grid;
+    gap: 8px;
+  }
+  .kanban-column {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    min-height: 62px;
+    padding: 6px;
+  }
+  .kanban-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #8b949e;
+    margin-bottom: 6px;
+  }
+  .kanban-count {
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: #c9d1d9;
+  }
+  .kanban-dropzone {
+    min-height: 36px;
+    display: grid;
+    gap: 6px;
+  }
+  .kanban-dropzone.drag-over {
+    outline: 1px dashed #58a6ff;
+    border-radius: 6px;
+  }
+  .task-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 7px;
+    cursor: pointer;
+  }
+  .task-card:hover { border-color: #58a6ff; }
+  .task-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .task-title {
+    font-size: 12px;
+    color: #c9d1d9;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .priority-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 10px;
+    padding: 1px 6px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .priority-critical { color: #ffa198; border-color: #f85149; background: #2b1111; }
+  .priority-high { color: #f2cc60; border-color: #d29922; background: #2a2007; }
+  .priority-medium { color: #79c0ff; border-color: #58a6ff; background: #0f1f36; }
+  .priority-low { color: #7ee787; border-color: #238636; background: #0f2415; }
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .meta-pill {
+    font-size: 10px;
+    border: 1px solid #30363d;
+    border-radius: 999px;
+    padding: 1px 6px;
+    color: #8b949e;
+    background: #0d1117;
+  }
+  .task-desc {
+    font-size: 11px;
+    color: #8b949e;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .task-expanded {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #30363d;
+    display: grid;
+    gap: 6px;
+  }
+  .task-expanded .detail {
+    font-size: 11px;
+    color: #c9d1d9;
+    line-height: 1.4;
+  }
+  .integration-notes {
+    border: 1px solid #1f6feb;
+    background: #0f1e35;
+    color: #9ecbff;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 11px;
+  }
+  .dependency-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .dependency-badge {
+    font-size: 10px;
+    color: #a5b4fc;
+    border: 1px solid #4c1d95;
+    background: #1f1037;
+    border-radius: 6px;
+    padding: 1px 5px;
+  }
+  .task-actions {
+    display: flex;
+    gap: 5px;
+  }
+  .btn-mini {
+    flex: 1;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+    font-size: 10px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn-mini:hover { background: #30363d; }
+  .btn-mini.discuss {
+    border-color: #238636;
+    color: #7ee787;
+    background: #0f2415;
+  }
+  .jobs-panel {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #30363d;
+  }
+  .job-trigger {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .job-item {
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 6px;
+    background: #0d1117;
+    margin-bottom: 6px;
+  }
+  .job-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    font-size: 11px;
+    color: #c9d1d9;
+    margin-bottom: 4px;
+  }
+  .job-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  .job-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .job-dot.queued { background: #f2cc60; }
+  .job-dot.running { background: #58a6ff; animation: pulse 1.2s infinite; }
+  .job-dot.completed { background: #3fb950; }
+  .job-dot.failed { background: #f85149; }
+  @keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+  }
+  .job-meta { font-size: 10px; color: #8b949e; }
+  .dashboard-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .dashboard-card h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #8b949e;
+    margin-bottom: 7px;
+  }
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .status-chip {
+    font-size: 10px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #161b22;
+    color: #c9d1d9;
+    padding: 5px 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .decision-item {
+    border-top: 1px solid #21262d;
+    padding-top: 6px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #c9d1d9;
+    line-height: 1.35;
+  }
   .participant-toggle {
     display: flex;
     align-items: center;
@@ -767,7 +1124,78 @@
   <span class="preset-label">Teams:</span>
 </div>
 <div class="main-area">
-  <div id="sidebar"></div>
+  <div id="sidebar">
+    <div id="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="participants" onclick="switchSidebarTab('participants')">People</button>
+      <button class="sidebar-tab" data-tab="tasks" onclick="switchSidebarTab('tasks')">Tasks</button>
+      <button class="sidebar-tab" data-tab="dashboard" onclick="switchSidebarTab('dashboard')">Dashboard</button>
+    </div>
+
+    <div id="sidebar-panel-participants" class="sidebar-panel active">
+      <div id="participants-panel"></div>
+    </div>
+
+    <div id="sidebar-panel-tasks" class="sidebar-panel">
+      <div class="sidebar-section">
+        <h3>Project</h3>
+        <select id="project-selector" class="project-select" onchange="onProjectChange(this.value)"></select>
+        <div id="project-meta" class="project-meta"></div>
+      </div>
+      <div class="sidebar-section">
+        <h3>Task Board</h3>
+        <div class="task-controls">
+          <button class="btn-wide primary" onclick="toggleTaskForm()">New Task</button>
+          <button class="btn-wide" onclick="loadTaskBoard()">Refresh Board</button>
+        </div>
+        <form id="task-form" class="task-form" onsubmit="submitTask(event)">
+          <input id="task-title" type="text" placeholder="Task title" required>
+          <textarea id="task-description" placeholder="Description" required></textarea>
+          <div class="task-form-grid">
+            <select id="task-priority"></select>
+            <select id="task-language">
+              <option value="">Language (optional)</option>
+              <option value="python">Python</option>
+              <option value="typescript">TypeScript</option>
+              <option value="swift">Swift</option>
+              <option value="kotlin">Kotlin</option>
+              <option value="rust">Rust</option>
+            </select>
+          </div>
+          <div class="task-form-grid">
+            <select id="task-team" onchange="onTeamSelected(this.value)"></select>
+            <input id="task-assignee" type="text" placeholder="Assignee (optional)">
+          </div>
+          <input id="task-depends-on" type="text" placeholder="Depends on task IDs (comma-separated)">
+          <textarea id="task-integration-notes" placeholder="Integration notes (optional)"></textarea>
+          <div id="team-preview" class="team-preview">Select a team preset to preview activated participants.</div>
+          <div class="task-form-actions">
+            <button type="button" class="btn-mini" onclick="assembleTeam()">Assemble Team</button>
+            <button type="submit" class="btn-mini discuss">Create</button>
+          </div>
+        </form>
+        <div id="task-board" class="kanban-board"></div>
+      </div>
+      <div class="sidebar-section jobs-panel">
+        <h3>Jobs</h3>
+        <div class="job-trigger">
+          <select id="job-type-select">
+            <option value="strategy-session">strategy-session</option>
+            <option value="build-business">build-business</option>
+            <option value="market-research">market-research</option>
+          </select>
+          <button class="btn-mini" onclick="triggerJob()">Trigger</button>
+        </div>
+        <div id="jobs-list"></div>
+      </div>
+    </div>
+
+    <div id="sidebar-panel-dashboard" class="sidebar-panel">
+      <div class="sidebar-section">
+        <h3>Summary</h3>
+        <div id="dashboard-content"></div>
+      </div>
+    </div>
+  </div>
   <div id="chat-area">
     <div id="chat"></div>
     <div id="input-area">
@@ -809,11 +1237,18 @@
 const chat = document.getElementById('chat');
 const input = document.getElementById('input');
 const sidebar = document.getElementById('sidebar');
+const participantsPanel = document.getElementById('participants-panel');
 const btnSend = document.getElementById('btn-send');
 const btnStop = document.getElementById('btn-stop');
 const btnPause = document.getElementById('btn-pause');
 const btnDebate = document.getElementById('btn-debate');
 const mentionPopup = document.getElementById('mention-popup');
+const projectSelector = document.getElementById('project-selector');
+const projectMeta = document.getElementById('project-meta');
+const taskForm = document.getElementById('task-form');
+const taskBoard = document.getElementById('task-board');
+const jobsList = document.getElementById('jobs-list');
+const dashboardContent = document.getElementById('dashboard-content');
 let ws;
 let thinkingEls = {};
 let participants = [];
@@ -823,6 +1258,58 @@ let isDeliberating = false;
 let isPaused = false;
 let presets = {};
 let statsTimer;
+let sidebarTab = 'participants';
+let projects = [];
+let activeProject = null;
+let tasks = [];
+let jobs = [];
+let dashboard = null;
+let expandedTaskId = null;
+let jobsTimer;
+const TASK_STATUSES = ['backlog', 'assigned', 'in_progress', 'review', 'done', 'blocked'];
+const TASK_PRIORITIES = ['critical', 'high', 'medium', 'low'];
+const TEAM_PRESETS = {
+  'backend-team': {
+    description: 'Python/FastAPI backend development',
+    members: ['Tech Lead', 'Backend Dev', 'Database Architect', 'Security Engineer', 'QA Engineer'],
+  },
+  'frontend-team': {
+    description: 'Next.js/TypeScript frontend development',
+    members: ['Tech Lead', 'Frontend Dev', 'UI/UX Designer', 'UX Psychologist', 'QA Engineer'],
+  },
+  'mobile-team': {
+    description: 'iOS (Swift) + Android (Kotlin) mobile apps',
+    members: ['Tech Lead', 'Mobile Dev', 'iOS Dev', 'Android Dev', 'UI/UX Designer', 'QA Engineer'],
+  },
+  'devops-team': {
+    description: 'Infrastructure, deployment, CI/CD',
+    members: ['Tech Lead', 'DevOps', 'Security Engineer', 'Database Architect'],
+  },
+  'sales-team': {
+    description: 'Sales strategy, funnels, outreach',
+    members: ['Sales Director', 'Copywriter', 'SEO Specialist', 'Persuasion Expert', 'Market Researcher'],
+  },
+  'marketing-team': {
+    description: 'Content, social media, brand',
+    members: ['Creative Director', 'Copywriter', 'Social Media', 'SEO Specialist', 'UX Psychologist'],
+  },
+  'finance-team': {
+    description: 'Budget, pricing, P&L, compliance',
+    members: ['CFO', 'Accountant', 'Tax Strategist', 'Risk Manager', 'Compliance'],
+  },
+  'qa-team': {
+    description: 'Testing, quality assurance, security audit',
+    members: ['QA Engineer', 'QA Tester', 'Security Engineer', 'DevOps'],
+  },
+  leadership: {
+    description: 'Executive review',
+    members: ['CEO', 'CTO', 'CFO', 'COO', 'Chief of Staff', 'Project Planner'],
+  },
+  'full-company': {
+    description: 'All hands for major milestones',
+    members: ['CEO', 'CTO', 'CFO', 'COO', 'Chief of Staff', 'Tech Lead', 'Backend Dev', 'Frontend Dev', 'Mobile Dev', 'DevOps', 'Sales Director', 'Copywriter', 'Market Researcher', 'QA Engineer', 'Risk Manager', "Devil's Advocate"],
+  },
+};
 
 function toggleSidebar() {
   sidebar.classList.toggle('hidden');
@@ -833,7 +1320,7 @@ function renderSidebar() {
   const builtinAgents = participants.filter(p => p.type === 'agent' && !p.researched);
   const personas = participants.filter(p => p.researched);
 
-  sidebar.textContent = '';
+  participantsPanel.textContent = '';
 
   function createSection(title, items, showRemove) {
     const section = document.createElement('div');
@@ -892,11 +1379,11 @@ function renderSidebar() {
     return section;
   }
 
-  sidebar.appendChild(createSection('AI Models', models, false));
+  participantsPanel.appendChild(createSection('AI Models', models, false));
   if (personas.length > 0) {
-    sidebar.appendChild(createSection('Personas', personas, true));
+    participantsPanel.appendChild(createSection('Personas', personas, true));
   }
-  sidebar.appendChild(createSection('Agents', builtinAgents, false));
+  participantsPanel.appendChild(createSection('Agents', builtinAgents, false));
 
   const statsSection = document.createElement('div');
   statsSection.className = 'sidebar-section';
@@ -909,7 +1396,7 @@ function renderSidebar() {
   statsBody.className = 'stats-body';
   statsBody.textContent = 'Loading...';
   statsSection.appendChild(statsBody);
-  sidebar.appendChild(statsSection);
+  participantsPanel.appendChild(statsSection);
 
   // Add Persona form
   const personaSection = document.createElement('div');
@@ -968,7 +1455,553 @@ function renderSidebar() {
   form.appendChild(statusDiv);
 
   personaSection.appendChild(form);
-  sidebar.appendChild(personaSection);
+  participantsPanel.appendChild(personaSection);
+}
+
+function switchSidebarTab(tab) {
+  sidebarTab = tab;
+  document.querySelectorAll('.sidebar-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.querySelectorAll('.sidebar-panel').forEach((panel) => panel.classList.remove('active'));
+  const panel = document.getElementById('sidebar-panel-' + tab);
+  if (panel) panel.classList.add('active');
+  if (tab === 'tasks') {
+    loadProjects();
+    loadTaskBoard();
+    loadJobs();
+  } else if (tab === 'dashboard') {
+    loadDashboard();
+  }
+}
+
+function normalizeProjectList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.projects)) return data.projects;
+  if (data && typeof data === 'object') return Object.values(data);
+  return [];
+}
+
+function normalizeTaskList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.tasks)) return data.tasks;
+  if (data && typeof data === 'object') return Object.values(data);
+  return [];
+}
+
+function normalizeTaskBoard(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (data.board && typeof data.board === 'object') return data.board;
+  if (TASK_STATUSES.some((k) => Array.isArray(data[k]))) return data;
+  return null;
+}
+
+function normalizeJobs(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.jobs)) return data.jobs;
+  return [];
+}
+
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error('Request failed: ' + res.status);
+  return res.json();
+}
+
+function renderProjectSelector() {
+  projectSelector.textContent = '';
+  if (!projects.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No projects';
+    projectSelector.appendChild(opt);
+    projectMeta.textContent = 'No project data available.';
+    return;
+  }
+  projects.forEach((project) => {
+    const opt = document.createElement('option');
+    opt.value = project.code;
+    opt.textContent = project.name || project.code;
+    if ((activeProject && activeProject.code === project.code) || (!activeProject && project.active)) {
+      opt.selected = true;
+      activeProject = project;
+    }
+    projectSelector.appendChild(opt);
+  });
+  if (!activeProject) activeProject = projects[0];
+  projectSelector.value = activeProject.code;
+  renderProjectMeta();
+}
+
+function renderProjectMeta() {
+  if (!activeProject) {
+    projectMeta.textContent = 'No active project selected.';
+    return;
+  }
+  projectMeta.textContent = '';
+  const name = document.createElement('div');
+  name.className = 'project-name';
+  name.textContent = activeProject.name || activeProject.code;
+  projectMeta.appendChild(name);
+  const stack = document.createElement('div');
+  stack.className = 'project-stack';
+  (activeProject.tech_stack || []).forEach((tech) => {
+    const badge = document.createElement('span');
+    badge.className = 'tech-badge';
+    badge.textContent = tech;
+    stack.appendChild(badge);
+  });
+  if (!(activeProject.tech_stack || []).length) {
+    const badge = document.createElement('span');
+    badge.className = 'tech-badge';
+    badge.textContent = 'no-tech-stack';
+    stack.appendChild(badge);
+  }
+  projectMeta.appendChild(stack);
+  populateTaskFormDefaults();
+}
+
+function populateTaskFormDefaults() {
+  const prioritySelect = document.getElementById('task-priority');
+  if (prioritySelect && prioritySelect.children.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Priority';
+    placeholder.disabled = true;
+    prioritySelect.appendChild(placeholder);
+    TASK_PRIORITIES.forEach((priority) => {
+      const opt = document.createElement('option');
+      opt.value = priority;
+      opt.textContent = priority;
+      prioritySelect.appendChild(opt);
+    });
+    prioritySelect.value = 'medium';
+  }
+
+  const teamSelect = document.getElementById('task-team');
+  if (teamSelect && teamSelect.children.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Team preset (optional)';
+    teamSelect.appendChild(placeholder);
+    Object.keys(TEAM_PRESETS).forEach((team) => {
+      const opt = document.createElement('option');
+      opt.value = team;
+      opt.textContent = team;
+      teamSelect.appendChild(opt);
+    });
+  }
+}
+
+async function loadProjects() {
+  try {
+    const data = await fetchJson('/api/projects');
+    projects = normalizeProjectList(data);
+    const explicitActive = projects.find((p) => p.active);
+    if (explicitActive) activeProject = explicitActive;
+    if (activeProject) {
+      const updated = projects.find((p) => p.code === activeProject.code);
+      if (updated) activeProject = updated;
+    }
+    renderProjectSelector();
+  } catch (err) {
+    projectMeta.textContent = 'Unable to load projects.';
+  }
+}
+
+function onProjectChange(code) {
+  activeProject = projects.find((p) => p.code === code) || null;
+  renderProjectMeta();
+  loadTaskBoard();
+  loadJobs();
+  if (sidebarTab === 'dashboard') loadDashboard();
+  if (ws && ws.readyState === WebSocket.OPEN && code) {
+    ws.send(JSON.stringify({type: 'set_project', project: code}));
+  }
+}
+
+function toggleTaskForm() {
+  taskForm.classList.toggle('open');
+}
+
+function onTeamSelected(team) {
+  const preview = document.getElementById('team-preview');
+  if (!team || !TEAM_PRESETS[team]) {
+    preview.textContent = 'Select a team preset to preview activated participants.';
+    return;
+  }
+  const preset = TEAM_PRESETS[team];
+  preview.textContent = preset.description + ': ' + preset.members.join(', ');
+}
+
+function assembleTeam() {
+  const team = document.getElementById('task-team').value;
+  if (!team) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type: 'activate_preset', preset: team}));
+  }
+  addPersonaBanner('added', 'Team assembled', team + ' activated');
+}
+
+async function submitTask(event) {
+  event.preventDefault();
+  const dependsOnRaw = document.getElementById('task-depends-on').value.trim();
+  const payload = {
+    title: document.getElementById('task-title').value.trim(),
+    description: document.getElementById('task-description').value.trim(),
+    project: (activeProject && activeProject.code) || '',
+    team: document.getElementById('task-team').value || null,
+    assignee: document.getElementById('task-assignee').value.trim() || null,
+    priority: document.getElementById('task-priority').value || 'medium',
+    language: document.getElementById('task-language').value || null,
+    depends_on: dependsOnRaw ? dependsOnRaw.split(',').map((v) => v.trim()).filter(Boolean) : [],
+    integration_notes: document.getElementById('task-integration-notes').value.trim() || null,
+  };
+  try {
+    await fetchJson('/api/tasks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    taskForm.reset();
+    document.getElementById('task-priority').value = 'medium';
+    document.getElementById('team-preview').textContent = 'Select a team preset to preview activated participants.';
+    taskForm.classList.remove('open');
+    await loadTaskBoard();
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Task creation failed: ' + err.message});
+  }
+}
+
+function taskBadge(text, className = 'meta-pill') {
+  const span = document.createElement('span');
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
+function renderTaskBoard() {
+  taskBoard.textContent = '';
+  const grouped = {};
+  TASK_STATUSES.forEach((s) => {
+    grouped[s] = [];
+  });
+  tasks.forEach((task) => {
+    if (!grouped[task.status]) grouped[task.status] = [];
+    grouped[task.status].push(task);
+  });
+
+  TASK_STATUSES.forEach((status) => {
+    const col = document.createElement('div');
+    col.className = 'kanban-column';
+    col.dataset.status = status;
+
+    const header = document.createElement('div');
+    header.className = 'kanban-header';
+    const title = document.createElement('span');
+    title.textContent = status.replace('_', ' ');
+    const count = document.createElement('span');
+    count.className = 'kanban-count';
+    count.textContent = grouped[status].length;
+    header.appendChild(title);
+    header.appendChild(count);
+    col.appendChild(header);
+
+    const dropzone = document.createElement('div');
+    dropzone.className = 'kanban-dropzone';
+    dropzone.dataset.status = status;
+    dropzone.ondragover = (e) => {
+      e.preventDefault();
+      dropzone.classList.add('drag-over');
+    };
+    dropzone.ondragleave = () => dropzone.classList.remove('drag-over');
+    dropzone.ondrop = async (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      const taskId = e.dataTransfer.getData('text/task-id');
+      if (taskId) await updateTask(taskId, {status: status});
+    };
+
+    grouped[status].forEach((task) => {
+      const card = document.createElement('div');
+      card.className = 'task-card';
+      card.draggable = true;
+      card.ondragstart = (e) => e.dataTransfer.setData('text/task-id', task.task_id);
+      card.onclick = () => {
+        expandedTaskId = expandedTaskId === task.task_id ? null : task.task_id;
+        renderTaskBoard();
+      };
+
+      const topline = document.createElement('div');
+      topline.className = 'task-topline';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'task-title';
+      titleEl.textContent = task.title || task.task_id;
+      topline.appendChild(titleEl);
+      topline.appendChild(taskBadge(task.priority || 'medium', 'priority-badge priority-' + (task.priority || 'medium')));
+      card.appendChild(topline);
+
+      const meta = document.createElement('div');
+      meta.className = 'task-meta';
+      if (task.assignee) meta.appendChild(taskBadge(task.assignee));
+      if (task.language) meta.appendChild(taskBadge(task.language));
+      if (task.team) meta.appendChild(taskBadge(task.team));
+      if (task.job_id) meta.appendChild(taskBadge('job:' + task.job_id));
+      card.appendChild(meta);
+
+      const desc = document.createElement('div');
+      desc.className = 'task-desc';
+      desc.textContent = task.description || 'No description';
+      card.appendChild(desc);
+
+      const quickActions = document.createElement('div');
+      quickActions.className = 'task-actions';
+      const discussQuick = document.createElement('button');
+      discussQuick.className = 'btn-mini discuss';
+      discussQuick.textContent = 'Discuss';
+      discussQuick.onclick = async (e) => {
+        e.stopPropagation();
+        await discussTask(task.task_id);
+      };
+      quickActions.appendChild(discussQuick);
+      card.appendChild(quickActions);
+
+      if ((task.status === 'review' || task.status === 'done') && task.integration_notes) {
+        const notes = document.createElement('div');
+        notes.className = 'integration-notes';
+        notes.textContent = 'Integration: ' + task.integration_notes;
+        card.appendChild(notes);
+      }
+
+      if (expandedTaskId === task.task_id) {
+        const expanded = document.createElement('div');
+        expanded.className = 'task-expanded';
+
+        const details = document.createElement('div');
+        details.className = 'detail';
+        details.textContent = task.description || '';
+        expanded.appendChild(details);
+
+        const deps = document.createElement('div');
+        deps.className = 'dependency-list';
+        (task.depends_on || []).forEach((dep) => deps.appendChild(taskBadge('\u2192 ' + dep, 'dependency-badge')));
+        (task.blocked_by || []).forEach((dep) => deps.appendChild(taskBadge('\u26d4 ' + dep, 'dependency-badge')));
+        if ((task.depends_on || []).length || (task.blocked_by || []).length) expanded.appendChild(deps);
+
+        if (task.integration_notes && !(task.status === 'review' || task.status === 'done')) {
+          const notes = document.createElement('div');
+          notes.className = 'detail';
+          notes.textContent = 'Integration: ' + task.integration_notes;
+          expanded.appendChild(notes);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+        const discussBtn = document.createElement('button');
+        discussBtn.className = 'btn-mini discuss';
+        discussBtn.textContent = 'Discuss';
+        discussBtn.onclick = async (e) => {
+          e.stopPropagation();
+          await discussTask(task.task_id);
+        };
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'btn-mini';
+        doneBtn.textContent = 'Mark Done';
+        doneBtn.onclick = async (e) => {
+          e.stopPropagation();
+          await updateTask(task.task_id, {status: 'done'});
+        };
+        actions.appendChild(discussBtn);
+        actions.appendChild(doneBtn);
+        expanded.appendChild(actions);
+
+        card.appendChild(expanded);
+      }
+      dropzone.appendChild(card);
+    });
+
+    col.appendChild(dropzone);
+    taskBoard.appendChild(col);
+  });
+}
+
+async function loadTaskBoard() {
+  try {
+    let boardData = null;
+    const query = activeProject && activeProject.code ? '?project=' + encodeURIComponent(activeProject.code) : '';
+    try {
+      boardData = normalizeTaskBoard(await fetchJson('/api/tasks/board' + query));
+    } catch (err) {
+      boardData = null;
+    }
+    if (boardData) {
+      tasks = TASK_STATUSES.flatMap((status) => (boardData[status] || []).map((task) => ({...task, status: task.status || status})));
+    } else {
+      const data = await fetchJson('/api/tasks' + query);
+      tasks = normalizeTaskList(data);
+    }
+    renderTaskBoard();
+  } catch (err) {
+    taskBoard.textContent = 'Unable to load tasks.';
+  }
+}
+
+async function updateTask(taskId, patch) {
+  try {
+    const payload = {
+      status: patch.status ?? null,
+      assignee: patch.assignee ?? null,
+      result: patch.result ?? null,
+      integration_notes: patch.integration_notes ?? null,
+    };
+    await fetchJson('/api/tasks/' + encodeURIComponent(taskId), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    await loadTaskBoard();
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Task update failed: ' + err.message});
+  }
+}
+
+async function discussTask(taskId) {
+  try {
+    await fetchJson('/api/tasks/' + encodeURIComponent(taskId) + '/discuss', {method: 'POST'});
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Task discuss failed: ' + err.message});
+  }
+}
+
+function renderJobs() {
+  jobsList.textContent = '';
+  if (!jobs.length) {
+    jobsList.textContent = 'No recent jobs.';
+    return;
+  }
+  jobs.slice(0, 12).forEach((job) => {
+    const item = document.createElement('div');
+    item.className = 'job-item';
+
+    const head = document.createElement('div');
+    head.className = 'job-head';
+    const type = document.createElement('strong');
+    type.textContent = job.job_type || job.type || 'job';
+    head.appendChild(type);
+    const status = document.createElement('span');
+    status.className = 'job-status';
+    const s = (job.status || 'queued').toLowerCase();
+    status.innerHTML = '<span class="job-dot ' + s + '"></span>' + s;
+    head.appendChild(status);
+    item.appendChild(head);
+
+    const meta = document.createElement('div');
+    meta.className = 'job-meta';
+    meta.textContent = (job.project || '-') + (job.task_id ? ' · task ' + job.task_id : '') + (job.job_id ? ' · #' + job.job_id : '');
+    item.appendChild(meta);
+    jobsList.appendChild(item);
+  });
+}
+
+async function loadJobs() {
+  try {
+    const query = activeProject && activeProject.code ? '?project=' + encodeURIComponent(activeProject.code) : '';
+    const data = await fetchJson('/api/jobs' + query);
+    jobs = normalizeJobs(data);
+    renderJobs();
+  } catch (err) {
+    jobsList.textContent = 'Unable to load jobs.';
+  }
+}
+
+function startJobsPoll() {
+  if (jobsTimer) clearInterval(jobsTimer);
+  jobsTimer = setInterval(() => {
+    if (sidebarTab === 'tasks' || sidebarTab === 'dashboard') loadJobs();
+  }, 15000);
+}
+
+async function triggerJob() {
+  const jobType = document.getElementById('job-type-select').value;
+  const payload = {
+    job_type: jobType,
+    project: activeProject ? activeProject.code : null,
+    params: {},
+  };
+  try {
+    await fetchJson('/api/jobs/trigger', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    await loadJobs();
+  } catch (err) {
+    addMessage({role: 'assistant', name: 'System', color: '#f85149', badge: 'agent', content: 'Job trigger failed: ' + err.message});
+  }
+}
+
+function computeTaskCounts() {
+  const counts = {};
+  TASK_STATUSES.forEach((status) => {
+    counts[status] = 0;
+  });
+  tasks.forEach((task) => {
+    counts[task.status] = (counts[task.status] || 0) + 1;
+  });
+  return counts;
+}
+
+function renderDashboard() {
+  dashboardContent.textContent = '';
+  const counts = dashboard?.task_counts || computeTaskCounts();
+  const runningJobs = dashboard?.running_jobs || jobs.filter((j) => ['queued', 'running'].includes((j.status || '').toLowerCase())).length;
+  const decisions = dashboard?.recent_decisions || [];
+
+  const taskCard = document.createElement('div');
+  taskCard.className = 'dashboard-card';
+  taskCard.innerHTML = '<h4>Task Counts</h4>';
+  const grid = document.createElement('div');
+  grid.className = 'status-grid';
+  TASK_STATUSES.forEach((status) => {
+    const chip = document.createElement('div');
+    chip.className = 'status-chip';
+    chip.innerHTML = '<span>' + status.replace('_', ' ') + '</span><strong>' + (counts[status] || 0) + '</strong>';
+    grid.appendChild(chip);
+  });
+  taskCard.appendChild(grid);
+  dashboardContent.appendChild(taskCard);
+
+  const jobsCard = document.createElement('div');
+  jobsCard.className = 'dashboard-card';
+  jobsCard.innerHTML = '<h4>Jobs</h4><div class="status-chip"><span>active jobs</span><strong>' + runningJobs + '</strong></div>';
+  dashboardContent.appendChild(jobsCard);
+
+  const decisionsCard = document.createElement('div');
+  decisionsCard.className = 'dashboard-card';
+  decisionsCard.innerHTML = '<h4>Recent Decisions</h4>';
+  if (!decisions.length) {
+    const empty = document.createElement('div');
+    empty.className = 'status-chip';
+    empty.innerHTML = '<span>none</span><strong>0</strong>';
+    decisionsCard.appendChild(empty);
+  } else {
+    decisions.slice(0, 6).forEach((decision) => {
+      const item = document.createElement('div');
+      item.className = 'decision-item';
+      item.textContent = (decision.description || decision.action || 'Decision') + ' [' + (decision.status || 'proposed') + ']';
+      decisionsCard.appendChild(item);
+    });
+  }
+  dashboardContent.appendChild(decisionsCard);
+}
+
+async function loadDashboard() {
+  try {
+    dashboard = await fetchJson('/api/dashboard');
+  } catch (err) {
+    dashboard = null;
+  }
+  renderDashboard();
 }
 
 function startStatsPoll() {
@@ -1028,6 +2061,12 @@ function connect() {
     console.log('Connected');
     reconnectAttempts = 0;
     startStatsPoll();
+    startJobsPoll();
+    loadProjects().then(() => {
+      loadTaskBoard();
+      loadJobs();
+      loadDashboard();
+    });
   };
 
   ws.onmessage = (event) => {
@@ -1149,6 +2188,40 @@ function connect() {
       addDevStatus('failed', 'Edit failed: ' + data.error);
     } else if (data.type === 'dev_bar_cleared') {
       devBarChat.textContent = '';
+    } else if (data.type === 'task_created') {
+      if (data.task) {
+        tasks = tasks.filter((t) => t.task_id !== data.task.task_id);
+        tasks.push(data.task);
+      }
+      renderTaskBoard();
+      renderDashboard();
+    } else if (data.type === 'task_updated') {
+      if (data.task) {
+        const idx = tasks.findIndex((t) => t.task_id === data.task.task_id);
+        if (idx >= 0) tasks[idx] = data.task;
+        else tasks.push(data.task);
+      }
+      renderTaskBoard();
+      renderDashboard();
+    } else if (data.type === 'tasks_list') {
+      tasks = normalizeTaskList(data.tasks || []);
+      renderTaskBoard();
+      renderDashboard();
+    } else if (data.type === 'job_started') {
+      jobs = [{...data}, ...jobs.filter((j) => j.job_id !== data.job_id)];
+      renderJobs();
+      renderDashboard();
+    } else if (data.type === 'job_update') {
+      const idx = jobs.findIndex((j) => j.job_id === data.job_id);
+      if (idx >= 0) jobs[idx] = {...jobs[idx], ...data};
+      else jobs.unshift({...data});
+      renderJobs();
+      renderDashboard();
+    } else if (data.type === 'team_assembled') {
+      addPersonaBanner('added', 'Team assembled', (data.team || 'team') + ': ' + (data.members || []).join(', '));
+      const selectedTeam = document.getElementById('task-team');
+      if (selectedTeam) selectedTeam.value = data.team || selectedTeam.value;
+      if (data.team) onTeamSelected(data.team);
     } else if (data.type === 'clear') {
       chat.textContent = '';
     }
@@ -1834,6 +2907,9 @@ function formatContent(text) {
   return html;
 }
 
+populateTaskFormDefaults();
+onTeamSelected('');
+switchSidebarTab('participants');
 connect();
 </script>
 </body>

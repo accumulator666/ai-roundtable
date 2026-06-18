@@ -1,0 +1,14 @@
+{
+  "name": "MeshMedia",
+  "description": "AI-generated social media influencers across TikTok, YouTube, Instagram",
+  "budget_limit_per_action": 50,
+  "budget_limit_daily": 200,
+  "revenue_model": "Ad revenue + sponsorships + affiliate marketing + merch",
+  "platforms": ["tiktok", "youtube", "instagram"],
+  "tools": {
+    "image_gen": "http://192.168.50.23:7861",
+    "comfyui": "http://192.168.50.23:8188",
+    "video_gen": null,
+    "voice_gen": null
+  }
+}

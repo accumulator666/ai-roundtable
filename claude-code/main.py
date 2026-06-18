@@ -30,7 +30,7 @@ class ChatRequest(BaseModel):
 
 async def run_claude_code(prompt: str, working_dir: str = "/workspace", model_flag: list[str] = None, allowed_tools: list[str] = None) -> str:
     cmd = [
-        "claude", "-p", prompt,
+        "claude", "-p",
         "--output-format", "text",
     ]
     if model_flag:
@@ -39,12 +39,15 @@ async def run_claude_code(prompt: str, working_dir: str = "/workspace", model_fl
         cmd.extend(["--allowedTools", ",".join(allowed_tools)])
     proc = await asyncio.create_subprocess_exec(
         *cmd,
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=working_dir,
         env={**os.environ, "CLAUDE_CODE_HEADLESS": "1"},
     )
-    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+    stdout, stderr = await asyncio.wait_for(
+        proc.communicate(input=prompt.encode()), timeout=300
+    )
     output = stdout.decode()
     if proc.returncode != 0 and not output:
         output = f"Error (exit {proc.returncode}): {stderr.decode()}"

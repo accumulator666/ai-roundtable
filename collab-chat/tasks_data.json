@@ -1,0 +1,40 @@
+{
+  "6e6f20e3": {
+    "task_id": "6e6f20e3",
+    "title": "Implement Stripe billing integration",
+    "description": "Add subscription management for carriers, per-lookup billing for insurance companies",
+    "project": "cdl-vault",
+    "status": "done",
+    "priority": "high",
+    "team": "backend-team",
+    "assignee": null,
+    "language": "python",
+    "depends_on": [],
+    "blocked_by": [],
+    "integration_notes": "Must integrate with existing auth system in /api/v1/auth.py. Frontend will need billing dashboard component.",
+    "result": "Stripe integration complete. Endpoints: POST /api/v1/billing/subscribe, GET /api/v1/billing/status",
+    "created_at": "2026-03-05T04:57:50.766448",
+    "updated_at": "2026-03-05T04:57:58.763270",
+    "job_id": null
+  },
+  "e7bd3da2": {
+    "task_id": "e7bd3da2",
+    "title": "Build billing dashboard UI",
+    "description": "Next.js component showing subscription status, payment history, usage",
+    "project": "cdl-vault",
+    "status": "in_progress",
+    "priority": "high",
+    "team": "frontend-team",
+    "assignee": null,
+    "language": "typescript",
+    "depends_on": [
+      "6e6f20e3"
+    ],
+    "blocked_by": [],
+    "integration_notes": "Depends on Stripe billing backend. Use /api/v1/billing endpoints.",
+    "result": null,
+    "created_at": "2026-03-05T04:57:50.799829",
+    "updated_at": "2026-03-08T05:03:11.380303",
+    "job_id": null
+  }
+}

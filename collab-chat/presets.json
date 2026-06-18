@@ -1,0 +1,303 @@
+{
+  "quick-3": {
+    "name": "Quick Discussion (3)",
+    "description": "Fast 3-way discussion for quick decisions",
+    "participants": [
+      "CEO",
+      "CTO",
+      "CFO"
+    ],
+    "deliberation_rounds": 1,
+    "synthesis_model": "gpt-5.2",
+    "is_team": false
+  },
+  "full-panel": {
+    "name": "Full Panel",
+    "description": "All available participants for comprehensive discussion",
+    "participants": [
+      "CEO",
+      "CTO",
+      "CFO",
+      "COO",
+      "Chief of Staff",
+      "Tech Lead",
+      "Backend Dev",
+      "Frontend Dev",
+      "Market Researcher",
+      "Risk Manager"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "gpt-5.2",
+    "is_team": false
+  },
+  "debate": {
+    "name": "Structured Debate",
+    "description": "Pro/Con debate with Devil's Advocate",
+    "participants": [
+      "CEO",
+      "CTO",
+      "Devil's Advocate",
+      "Risk Manager",
+      "CFO"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "o1-pro",
+    "is_team": false
+  },
+  "research": {
+    "name": "Market Research",
+    "description": "Deep market analysis and competitive research",
+    "participants": [
+      "Market Researcher",
+      "Data Analyst",
+      "Competitive Intel",
+      "CTO",
+      "CEO"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "gpt-5.2",
+    "is_team": false
+  },
+  "finance-review": {
+    "name": "Finance Review",
+    "description": "Detailed financial analysis and planning",
+    "participants": [
+      "CFO",
+      "Accountant",
+      "Risk Manager",
+      "Tax Strategist",
+      "CEO"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "gpt-5.2",
+    "is_team": false
+  },
+  "backend-team": {
+    "name": "Backend Team",
+    "description": "Python/FastAPI backend development team",
+    "participants": [
+      "Tech Lead",
+      "Backend Dev",
+      "Python Lead",
+      "Database Architect",
+      "Security Engineer",
+      "QA Engineer"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "claude-sonnet-4-5",
+    "is_team": true
+  },
+  "frontend-team": {
+    "name": "Frontend Team",
+    "description": "Next.js/TypeScript frontend development team",
+    "participants": [
+      "Tech Lead",
+      "Frontend Dev",
+      "TypeScript Lead",
+      "UI/UX Designer",
+      "UX Psychologist",
+      "QA Engineer"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "claude-sonnet-4-5",
+    "is_team": true
+  },
+  "mobile-team": {
+    "name": "Mobile Team",
+    "description": "iOS + Android mobile development team",
+    "participants": [
+      "Tech Lead",
+      "Mobile Dev",
+      "iOS Dev",
+      "Android Dev",
+      "UI/UX Designer",
+      "QA Engineer"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "claude-sonnet-4-5",
+    "is_team": true
+  },
+  "devops-team": {
+    "name": "DevOps Team",
+    "description": "Infrastructure, deployment, and CI/CD",
+    "participants": [
+      "Tech Lead",
+      "DevOps",
+      "Security Engineer",
+      "Database Architect"
+    ],
+    "deliberation_rounds": 1,
+    "synthesis_model": "claude-sonnet-4-5",
+    "is_team": true
+  },
+  "sales-team": {
+    "name": "Sales Team",
+    "description": "Sales strategy, funnels, and outreach",
+    "participants": [
+      "Sales Director",
+      "Copywriter",
+      "SEO Specialist",
+      "Persuasion Expert",
+      "Market Researcher"
+    ],
+    "deliberation_rounds": 1,
+    "synthesis_model": "gpt-5.2",
+    "is_team": true
+  },
+  "marketing-team": {
+    "name": "Marketing Team",
+    "description": "Content, social media, and brand",
+    "participants": [
+      "Creative Director",
+      "Copywriter",
+      "Social Media",
+      "SEO Specialist",
+      "UX Psychologist"
+    ],
+    "deliberation_rounds": 1,
+    "synthesis_model": "gpt-5.2",
+    "is_team": true
+  },
+  "finance-team": {
+    "name": "Finance Team",
+    "description": "Budget, pricing, P&L, and compliance",
+    "participants": [
+      "CFO",
+      "Accountant",
+      "Tax Strategist",
+      "Risk Manager",
+      "Compliance"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "gpt-5.2",
+    "is_team": true
+  },
+  "qa-team": {
+    "name": "QA Team",
+    "description": "Testing, quality assurance, and security audit",
+    "participants": [
+      "QA Engineer",
+      "QA Tester",
+      "Security Engineer",
+      "DevOps"
+    ],
+    "deliberation_rounds": 1,
+    "synthesis_model": "claude-sonnet-4-5",
+    "is_team": true
+  },
+  "leadership": {
+    "name": "Leadership",
+    "description": "Executive review \u2014 all teams report here",
+    "participants": [
+      "CEO",
+      "CTO",
+      "CFO",
+      "COO",
+      "Chief of Staff",
+      "Project Planner"
+    ],
+    "deliberation_rounds": 3,
+    "synthesis_model": "o1-pro",
+    "is_team": true
+  },
+  "full-company": {
+    "name": "Full Company",
+    "description": "All hands \u2014 entire company for major milestones",
+    "participants": [
+      "CEO",
+      "CTO",
+      "CFO",
+      "COO",
+      "Chief of Staff",
+      "Tech Lead",
+      "Backend Dev",
+      "Frontend Dev",
+      "Mobile Dev",
+      "DevOps",
+      "Sales Director",
+      "Copywriter",
+      "Market Researcher",
+      "QA Engineer",
+      "Risk Manager",
+      "Devil's Advocate"
+    ],
+    "deliberation_rounds": 3,
+    "synthesis_model": "o1-pro",
+    "is_team": true
+  },
+  "business-banking": {
+    "name": "Business Banking & Entity",
+    "description": "Entity structuring, tax optimization, asset protection, banking \u2014 the full Russian Doll team",
+    "participants": [
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst",
+      "Insurance Advisor"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "claude-opus-4-6",
+    "is_team": true,
+    "members": [
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst",
+      "Insurance Advisor"
+    ]
+  },
+  "legal-review": {
+    "name": "Legal Review",
+    "description": "Attorney + tax + compliance review for legal questions",
+    "participants": [
+      "Business Attorney",
+      "Tax Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "Compliance"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "grok-4-1-fast-reasoning",
+    "is_team": true,
+    "members": [
+      "Business Attorney",
+      "Tax Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "Compliance"
+    ]
+  },
+  "book-business-structures": {
+    "name": "Book: Business Structures",
+    "description": "Full authoring team for writing & publishing a book on business structures \u2014 entity law, trusts, banking, financial analysis, tax optimization, and asset protection",
+    "participants": [
+      "Book Publisher",
+      "CFA Analyst",
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Trust Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst"
+    ],
+    "deliberation_rounds": 3,
+    "synthesis_model": "claude-opus-4-6",
+    "is_team": true,
+    "members": [
+      "Book Publisher",
+      "CFA Analyst",
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Trust Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst"
+    ]
+  }
+}

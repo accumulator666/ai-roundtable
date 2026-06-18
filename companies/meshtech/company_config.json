@@ -1,0 +1,7 @@
+{
+  "name": "MeshTech",
+  "description": "Builds and sells software products — SaaS, APIs, digital tools",
+  "budget_limit_per_action": 20,
+  "budget_limit_daily": 100,
+  "revenue_model": "Stripe subscriptions + one-time purchases + API fees"
+}

@@ -16,14 +16,19 @@ PROXY_MAP = {
     "claude-code": "http://claude-code:8000",
 }
 
-# Models that should route to R730 (big models that need 24GB VRAM / 128GB RAM)
+# Models available on R730 (192.168.50.179 / 10.0.0.2 via 10G SFP+)
+# Tesla M40 24GB VRAM, 128GB RAM. Updated 2026-03-24.
 R730_MODELS = {
     "deepseek-coder:33b",
-    "llama3.1:70b",
-    "qwen2.5:72b",
-    "codellama:34b",
-    "mixtral:8x7b",
-    "llama3.1:8b",  # can offload to R730 when local is busy
+    "deepseek-r1:32b",
+    "qwen2.5:32b",
+    "qwen2.5:7b",
+    "qwen2.5-coder:7b",
+    "wizardlm-uncensored:13b",
+    "dolphin-mixtral:latest",
+    "dolphin-llama3:8b",
+    "dolphin-mistral:latest",
+    "nous-hermes2:latest",
 }
 
 MODEL_TO_PROXY = {
@@ -75,13 +80,42 @@ AUTO_ROUTE_PATTERNS = {
 }
 
 
+# Alias :latest tags to exact tags available on R730
+MODEL_ALIASES = {
+    "qwen2.5:latest": "qwen2.5:7b",
+    "qwen2.5-coder:latest": "qwen2.5-coder:7b",
+    "nous-hermes2": "nous-hermes2:latest",
+    "dolphin-llama3": "dolphin-llama3:8b",
+    "dolphin-mistral": "dolphin-mistral:latest",
+    "dolphin-mixtral": "dolphin-mixtral:latest",
+    "deepseek-coder": "deepseek-coder:33b",
+    "deepseek-r1": "deepseek-r1:32b",
+    "wizardlm-uncensored": "wizardlm-uncensored:13b",
+    "qwen2.5": "qwen2.5:7b",
+}
+
+
+def resolve_model_name(model: str) -> str:
+    """Resolve aliases and :latest tags to exact model names available on R730."""
+    if model in MODEL_ALIASES:
+        return MODEL_ALIASES[model]
+    return model
+
+
 def resolve_proxy_url(model: str) -> str:
     proxy_name = MODEL_TO_PROXY.get(model)
     if not proxy_name:
-        # Local Ollama model — check if it should go to R730
-        if model in R730_MODELS:
+        # Check if it should go to R730
+        resolved = resolve_model_name(model)
+        if resolved in R730_MODELS or model in R730_MODELS:
             return PROXY_MAP["ollama-r730"]
-        return PROXY_MAP["ollama"]
+        # Check if base name matches any R730 model
+        model_base = model.split(":")[0]
+        for r730_model in R730_MODELS:
+            if r730_model.split(":")[0] == model_base:
+                return PROXY_MAP["ollama-r730"]
+        # Fallback: try R730 (local Ollama may not be running)
+        return PROXY_MAP["ollama-r730"]
     return PROXY_MAP[proxy_name]
 
 

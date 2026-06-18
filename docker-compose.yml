@@ -37,6 +37,7 @@ services:
       - "${PORT_HTTP:-80}:80"
       - "${PORT_HTTPS:-443}:443"
       - "8444:8444"
+      - "8445:8445"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - /data/caddy/data:/data
@@ -245,14 +246,14 @@ services:
       - ai-mesh
       - ai-stack
 
-  # --- Collaborative Chat ---
+  # --- Legacy Collaborative Chat (will be replaced by company roundtables) ---
 
   collab-chat:
     image: python:3.12-slim
     container_name: ai-mesh-collab-chat
     restart: unless-stopped
     ports:
-      - "${PORT_COLLAB_CHAT:-8130}:8000"
+      - "${PORT_COLLAB_CHAT:-8139}:8000"
     environment:
       - ROUTER_URL=http://ai-mesh-router:8000
     volumes:
@@ -265,6 +266,234 @@ services:
         condition: service_healthy
     networks:
       - ai-mesh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # --- MeshCorp HQ (replaces company roundtables + collab-chat) ---
+
+  meshcorp-hq:
+    image: python:3.12-slim
+    container_name: ai-mesh-meshcorp-hq
+    restart: unless-stopped
+    ports:
+      - "${PORT_MESHCORP_HQ:-8160}:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+      - CLAUDE_CODE_URL=http://ai-mesh-claude-code:8000
+      - AGENTS_URL=http://ai-mesh-crewai:8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - OWNER_EMAIL=${OWNER_EMAIL:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - PUSHOVER_USER_KEY=${PUSHOVER_USER_KEY:-}
+      - PUSHOVER_API_TOKEN=${PUSHOVER_API_TOKEN:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
+      - OWNER_PHONE=${OWNER_PHONE:-}
+    volumes:
+      - ./meshcorp:/app/meshcorp
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r meshcorp/requirements.txt && uvicorn meshcorp.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # --- Company Roundtables (Holding + 4 Subsidiaries) ---
+
+  holding-board:
+    image: python:3.12-slim
+    container_name: ai-mesh-holding-board
+    restart: unless-stopped
+    ports:
+      - "8130:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+      - COMPANY_CODE=holding
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AGENTS_URL=http://ai-mesh-crewai:8000
+    volumes:
+      - ./companies/holding:/app
+      - ./companies/shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r shared/requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      crewai-agents:
+        condition: service_started
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  meshtech:
+    image: python:3.12-slim
+    container_name: ai-mesh-meshtech
+    restart: unless-stopped
+    ports:
+      - "8131:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+      - COMPANY_CODE=meshtech
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AGENTS_URL=http://ai-mesh-crewai:8000
+    volumes:
+      - ./companies/meshtech:/app
+      - ./companies/shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r shared/requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  meshmedia:
+    image: python:3.12-slim
+    container_name: ai-mesh-meshmedia
+    restart: unless-stopped
+    ports:
+      - "8132:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+      - COMPANY_CODE=meshmedia
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AGENTS_URL=http://ai-mesh-crewai:8000
+    volumes:
+      - ./companies/meshmedia:/app
+      - ./companies/shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r shared/requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  meshcapital:
+    image: python:3.12-slim
+    container_name: ai-mesh-meshcapital
+    restart: unless-stopped
+    ports:
+      - "8133:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+      - COMPANY_CODE=meshcapital
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AGENTS_URL=http://ai-mesh-crewai:8000
+      - OPTIONS_TRADER_URL=http://192.168.50.23:8140
+    volumes:
+      - ./companies/meshcapital:/app
+      - ./companies/shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r shared/requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  meshventures:
+    image: python:3.12-slim
+    container_name: ai-mesh-meshventures
+    restart: unless-stopped
+    ports:
+      - "8134:8000"
+    environment:
+      - ROUTER_URL=http://ai-mesh-router:8000
+      - COMPANY_CODE=meshventures
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=${POSTGRES_HOST:-prompt-template-db}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_mesh}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AGENTS_URL=http://ai-mesh-crewai:8000
+    volumes:
+      - ./companies/meshventures:/app
+      - ./companies/shared:/app/shared
+    working_dir: /app
+    entrypoint: >
+      sh -c "pip install --quiet -r shared/requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      ai-router:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-mesh
+      - ai-stack
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s

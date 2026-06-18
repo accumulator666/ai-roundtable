@@ -1,0 +1,98 @@
+{
+  "book-business-structures": {
+    "label": "Book: Business Structures",
+    "name": "Book: Business Structures",
+    "description": "Full authoring team for writing & publishing a book on business structures",
+    "participants": [
+      "Book Publisher",
+      "CFA Analyst",
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Trust Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst"
+    ],
+    "deliberation_rounds": 3,
+    "synthesis_model": "claude-opus-4-6",
+    "is_team": true,
+    "members": [
+      "Book Publisher",
+      "CFA Analyst",
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Trust Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst"
+    ]
+  },
+  "business-banking": {
+    "label": "Banking & Entity",
+    "name": "Business Banking & Entity",
+    "description": "Entity structuring, tax optimization, asset protection, banking",
+    "participants": [
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "claude-opus-4-6",
+    "is_team": true,
+    "members": [
+      "Senior Business Banker",
+      "Business Attorney",
+      "Tax Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary",
+      "State Formation Analyst"
+    ]
+  },
+  "legal-review": {
+    "label": "Legal Review",
+    "name": "Legal Review",
+    "description": "Attorney + trust + asset protection review",
+    "participants": [
+      "Business Attorney",
+      "Tax Attorney",
+      "Trust Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "grok-4-1-fast-reasoning",
+    "is_team": true,
+    "members": [
+      "Business Attorney",
+      "Tax Attorney",
+      "Trust Attorney",
+      "Asset Protection Specialist",
+      "Corporate Secretary"
+    ]
+  },
+  "board-meeting": {
+    "label": "Board Meeting",
+    "name": "Board Meeting",
+    "description": "CEO, CFO, COO, Chief of Staff \u2014 strategic decisions",
+    "participants": [
+      "CEO",
+      "CFO",
+      "COO",
+      "Chief of Staff"
+    ],
+    "deliberation_rounds": 2,
+    "synthesis_model": "gpt-5.2",
+    "is_team": true,
+    "members": [
+      "CEO",
+      "CFO",
+      "COO",
+      "Chief of Staff"
+    ]
+  }
+}

@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeshCorp HQ</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Header */
+  header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 18px; font-weight: 600; color: #58a6ff; }
+  header h1 .hq-badge {
+    font-size: 10px;
+    background: #238636;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  header .controls { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #30363d; }
+  .btn.active { border-color: #58a6ff; color: #58a6ff; background: #111d2f; }
+  .btn-danger {
+    background: #21262d;
+    color: #f85149;
+    border: 1px solid #da3633;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn-danger:hover { background: #2b1111; }
+  .ws-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #da3633;
+    display: inline-block;
+    transition: background 0.3s;
+  }
+  .ws-dot.connected { background: #3fb950; }
+
+  /* Preset bar */
+  #preset-bar {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 8px 20px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  #preset-bar .preset-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .preset-btn {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 5px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .preset-btn:hover { background: #30363d; border-color: #58a6ff; color: #58a6ff; }
+  .preset-btn .icon { font-size: 14px; }
+
+  /* Main layout */
+  .main-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Sidebar */
+  #sidebar {
+    width: 280px;
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    overflow-y: auto;
+    padding: 12px;
+    flex-shrink: 0;
+    transition: margin-left 0.2s;
+  }
+  #sidebar.hidden { margin-left: -280px; }
+  #sidebar-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .sidebar-tab {
+    background: #0d1117;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .sidebar-tab.active {
+    color: #58a6ff;
+    border-color: #58a6ff;
+    background: #111d2f;
+  }
+  .sidebar-panel { display: none; }
+  .sidebar-panel.active { display: block; }
+  .sidebar-section { margin-bottom: 16px; }
+  .sidebar-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+
+  /* People tab */
+  .participant-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 3px;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .participant-item:hover { background: #21262d; }
+  .participant-item.active { background: #1c2333; }
+  .participant-item .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.3;
+    transition: opacity 0.15s;
+  }
+  .participant-item.active .dot { opacity: 1; }
+  .participant-item .info { flex: 1; min-width: 0; }
+  .participant-item .pname {
+    font-size: 13px; font-weight: 500; color: #c9d1d9;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .participant-item .pmeta {
+    font-size: 10px; color: #8b949e;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .participant-item .lead-badge {
+    font-size: 9px;
+    background: #238636;
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .toggle-switch {
+    width: 32px; height: 18px;
+    background: #30363d; border-radius: 9px;
+    position: relative; flex-shrink: 0;
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .participant-item.active .toggle-switch { background: #238636; }
+  .toggle-switch::after {
+    content: '';
+    width: 14px; height: 14px;
+    background: #e6edf3;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: transform 0.15s;
+  }
+  .participant-item.active .toggle-switch::after { transform: translateX(14px); }
+  .skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+  }
+  .skill-tag {
+    font-size: 9px;
+    background: #1f2937;
+    color: #93c5fd;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 0px 5px;
+  }
+
+  /* Projects tab */
+  .project-list-item {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .project-list-item:hover { border-color: #58a6ff; }
+  .project-list-item.selected { border-color: #58a6ff; background: #111d2f; }
+  .project-list-item .proj-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #c9d1d9;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .project-list-item .proj-template {
+    font-size: 10px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .status-badge {
+    display: inline-block;
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    border: 1px solid;
+  }
+  .status-planning { color: #79c0ff; border-color: #58a6ff; background: #0f1f36; }
+  .status-active { color: #7ee787; border-color: #238636; background: #0f2415; }
+  .status-completed { color: #3fb950; border-color: #238636; background: #0f2415; }
+  .status-killed { color: #f85149; border-color: #da3633; background: #2b1111; }
+  .status-paused { color: #f2cc60; border-color: #d29922; background: #2a2007; }
+  .status-proposal { color: #d2a8ff; border-color: #8957e5; background: #1c1037; }
+
+  .project-detail { margin-top: 10px; }
+  .milestone-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #21262d;
+    font-size: 12px;
+  }
+  .milestone-item:last-child { border-bottom: none; }
+  .milestone-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+  .milestone-dot.pending { background: #484f58; }
+  .milestone-dot.active { background: #58a6ff; animation: pulse 1.2s infinite; }
+  .milestone-dot.completed { background: #3fb950; }
+  .milestone-dot.failed { background: #f85149; }
+  .milestone-dot.skipped { background: #8b949e; }
+  @keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+  }
+  .milestone-title { color: #c9d1d9; flex: 1; line-height: 1.3; }
+  .milestone-status {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: #8b949e;
+    white-space: nowrap;
+  }
+
+  .project-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .btn-wide {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+    transition: background 0.15s;
+  }
+  .btn-wide:hover { background: #30363d; }
+  .btn-wide:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-wide.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .btn-wide.primary:hover { background: #388bfd; }
+  .btn-wide.danger { background: #21262d; border-color: #da3633; color: #f85149; }
+  .btn-wide.danger:hover { background: #2b1111; }
+
+  .budget-bar {
+    margin-top: 8px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px;
+  }
+  .budget-bar .budget-label {
+    font-size: 11px;
+    color: #8b949e;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .budget-track {
+    height: 6px;
+    background: #21262d;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .budget-fill {
+    height: 100%;
+    background: #238636;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+
+  .action-item {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+  .action-item.critical { border-left: 3px solid #f85149; }
+  .action-item .action-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #c9d1d9;
+    margin-bottom: 4px;
+  }
+  .action-item .action-desc {
+    font-size: 11px;
+    color: #8b949e;
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+  .btn-resolve {
+    background: #238636;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .btn-resolve:hover { background: #2ea043; }
+
+  /* Dashboard tab */
+  .dashboard-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .dashboard-card h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #8b949e;
+    margin-bottom: 7px;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .stat-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+  }
+  .stat-box .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #58a6ff;
+  }
+  .stat-box .stat-label {
+    font-size: 10px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+  }
+
+  /* Chat area */
+  #chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .message {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.5;
+    font-size: 14px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message.user {
+    align-self: flex-end;
+    background: #1f6feb;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .message.assistant {
+    align-self: flex-start;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-bottom-left-radius: 4px;
+  }
+  .message.system-msg {
+    align-self: center;
+    background: #0c1a2e;
+    border: 1px solid #1f6feb;
+    color: #58a6ff;
+    font-size: 13px;
+    max-width: 90%;
+    text-align: center;
+  }
+  .message.milestone-msg {
+    align-self: center;
+    background: #0c1a0e;
+    border: 1px solid #238636;
+    color: #3fb950;
+    font-size: 13px;
+    max-width: 90%;
+    text-align: center;
+  }
+  .message.error-msg {
+    align-self: center;
+    background: #1a0d0d;
+    border: 1px solid #da3633;
+    color: #f85149;
+    font-size: 13px;
+    max-width: 90%;
+  }
+  .message .sender {
+    font-size: 12px; font-weight: 600;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .message .sender .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; display: inline-block;
+  }
+  .message .sender .model-id {
+    font-size: 10px;
+    color: #8b949e;
+    font-weight: 400;
+  }
+  .message .content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .message .content code {
+    background: #0d1117; padding: 2px 6px;
+    border-radius: 4px; font-size: 13px;
+  }
+  .message .content pre {
+    background: #0d1117; padding: 12px;
+    border-radius: 8px; overflow-x: auto; margin: 8px 0;
+  }
+  .message .msg-tags {
+    display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap;
+  }
+
+  /* Thinking indicator */
+  .thinking-indicator {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; font-size: 13px; color: #8b949e;
+    animation: fadeIn 0.3s ease;
+  }
+  .thinking-dots { display: flex; gap: 4px; }
+  .thinking-dots span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #58a6ff;
+    animation: bounce 1.4s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(1) { animation-delay: 0s; }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40% { transform: translateY(-8px); opacity: 1; }
+  }
+
+  /* Input area */
+  #input-area {
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    padding: 14px 20px;
+    display: flex; gap: 10px;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+  #input-area textarea {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    min-height: 48px; max-height: 120px;
+    line-height: 1.4;
+  }
+  #input-area textarea:focus { outline: none; border-color: #58a6ff; }
+  .btn-send {
+    background: #238636; color: white; border: none;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .btn-send:hover { background: #2ea043; }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-stop {
+    background: #da3633; color: white; border: none;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-stop:hover:not(:disabled) { background: #f85149; }
+  .btn-stop:disabled { background: #3d1a1a; color: #6e3630; cursor: not-allowed; }
+  .btn-pause {
+    background: #9e6a03; color: white; border: none;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-pause:hover:not(:disabled) { background: #bb8009; }
+  .btn-pause:disabled { background: #2a1f00; color: #6e5a1a; cursor: not-allowed; }
+
+  /* Dev bar */
+  #dev-bar {
+    background: #0d1117;
+    border-top: 2px solid #f0883e;
+    display: flex;
+    flex-direction: column;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    flex-shrink: 0;
+  }
+  #dev-bar.open { max-height: 50vh; }
+  #dev-bar-toggle {
+    background: #21262d;
+    color: #f0883e;
+    border: 1px solid #f0883e;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  #dev-bar-toggle:hover { background: #30363d; }
+  #dev-bar-toggle.active { background: #f0883e; color: #0d1117; }
+  #dev-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    flex-shrink: 0;
+  }
+  #dev-bar-header .dev-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f0883e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #dev-bar-header select {
+    background: #21262d;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  #dev-bar-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100px;
+  }
+  .dev-msg {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 90%;
+  }
+  .dev-msg.user {
+    align-self: flex-end;
+    background: #1f4a2d;
+    color: #7ee787;
+    border-bottom-right-radius: 2px;
+  }
+  .dev-msg.assistant {
+    align-self: flex-start;
+    background: #1c1a2e;
+    border: 1px solid #7c3aed;
+    border-bottom-left-radius: 2px;
+  }
+  .dev-msg .dev-sender {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f0883e;
+    margin-bottom: 4px;
+  }
+  .dev-msg .dev-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .dev-msg .dev-content code {
+    background: #0d1117;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .dev-msg .dev-content pre {
+    background: #0d1117;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 6px 0;
+    font-size: 12px;
+  }
+  .dev-thinking {
+    font-size: 12px;
+    color: #f0883e;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: fadeIn 0.3s ease;
+  }
+  #dev-bar-input {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    flex-shrink: 0;
+    align-items: flex-end;
+  }
+  #dev-bar-input textarea {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: none;
+    min-height: 36px;
+    max-height: 100px;
+    line-height: 1.4;
+  }
+  #dev-bar-input textarea:focus { outline: none; border-color: #f0883e; }
+  .btn-dev-send {
+    background: #f0883e;
+    color: #0d1117;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-dev-send:hover { background: #f59e0b; }
+  .btn-dev-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-dev-clear {
+    background: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-dev-clear:hover { background: #30363d; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 24px;
+    width: 480px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .modal h2 {
+    font-size: 18px;
+    color: #58a6ff;
+    margin-bottom: 4px;
+  }
+  .modal .modal-desc {
+    font-size: 13px;
+    color: #8b949e;
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+  .modal label {
+    display: block;
+    font-size: 12px;
+    color: #8b949e;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .modal textarea, .modal input, .modal select {
+    width: 100%;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 12px;
+  }
+  .modal textarea { min-height: 80px; resize: vertical; }
+  .modal textarea:focus, .modal input:focus, .modal select:focus { outline: none; border-color: #58a6ff; }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+  .modal-actions .btn { padding: 8px 20px; }
+  .modal-actions .btn-send { padding: 8px 20px; font-size: 14px; }
+
+  .modal input[type="number"] { -moz-appearance: textfield; }
+  .modal input[type="number"]::-webkit-outer-spin-button,
+  .modal input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .modal-team {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .modal-team-member {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 3px 8px;
+  }
+  .modal-team-member .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #484f58;
+  }
+  .empty-state .big-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+  .empty-state h3 {
+    font-size: 16px;
+    color: #8b949e;
+    margin-bottom: 8px;
+  }
+  .empty-state p {
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+  .no-project-notice {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    font-size: 12px;
+    color: #8b949e;
+    text-align: center;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MeshCorp HQ <span class="hq-badge">War Room</span></h1>
+  <div class="controls">
+    <span class="ws-dot" id="ws-indicator" title="WebSocket disconnected"></span>
+    <button class="btn" id="btn-sidebar" onclick="toggleSidebar()">Sidebar</button>
+    <button class="btn" onclick="clearChat()">Clear</button>
+    <button id="dev-bar-toggle" onclick="toggleDevBar()">Dev Bar</button>
+  </div>
+</header>
+
+<div id="preset-bar">
+  <span class="preset-label">Quick Start:</span>
+  <span id="preset-buttons">Loading templates...</span>
+</div>
+
+<div class="main-area">
+  <div id="sidebar">
+    <div id="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="people" onclick="switchTab('people')">People</button>
+      <button class="sidebar-tab" data-tab="projects" onclick="switchTab('projects')">Projects</button>
+      <button class="sidebar-tab" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    </div>
+
+    <div id="panel-people" class="sidebar-panel active">
+      <div class="sidebar-section">
+        <h3>Team</h3>
+        <div id="team-list">
+          <div class="no-project-notice">Select a template or create a project to see the team.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-projects" class="sidebar-panel">
+      <div class="sidebar-section">
+        <h3>All Projects</h3>
+        <div id="projects-list"></div>
+      </div>
+      <div id="project-detail-section" style="display:none;">
+        <div class="sidebar-section">
+          <h3>Milestones</h3>
+          <div id="milestones-list"></div>
+        </div>
+        <div class="project-actions">
+          <button class="btn-wide primary" id="btn-advance" onclick="advanceProject()">Advance</button>
+          <button class="btn-wide" id="btn-fund" onclick="openFundModal()">Fund</button>
+          <button class="btn-wide danger" id="btn-kill" onclick="killProject()">Kill</button>
+          <button class="btn-wide" onclick="refreshProjectDetail()">Refresh</button>
+        </div>
+        <div id="budget-display"></div>
+        <div class="sidebar-section" style="margin-top:12px;">
+          <h3>Action Items</h3>
+          <div id="actions-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-dashboard" class="sidebar-panel">
+      <div class="sidebar-section">
+        <h3>Overview</h3>
+        <div id="dashboard-stats">
+          <div class="stat-grid">
+            <div class="stat-box"><div class="stat-value" id="dash-active">0</div><div class="stat-label">Active</div></div>
+            <div class="stat-box"><div class="stat-value" id="dash-planning">0</div><div class="stat-label">Planning</div></div>
+            <div class="stat-box"><div class="stat-value" id="dash-budget">$0</div><div class="stat-label">Allocated</div></div>
+            <div class="stat-box"><div class="stat-value" id="dash-spent">$0</div><div class="stat-label">Spent</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h3>Pending Actions</h3>
+        <div id="dash-actions"></div>
+      </div>
+      <div class="sidebar-section">
+        <h3>Recent Projects</h3>
+        <div id="dash-projects"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="chat-area">
+    <div id="chat">
+      <div class="empty-state" id="empty-chat">
+        <div class="big-icon">&#x1F3E2;</div>
+        <h3>Welcome to MeshCorp HQ</h3>
+        <p>Click a template above to create a project, or select an existing project from the sidebar. Your AI team will assemble and start working.</p>
+      </div>
+    </div>
+    <div id="input-area">
+      <textarea id="input" placeholder="Send a message to your team as CEO..." rows="1"
+        onkeydown="handleInputKey(event)"
+        oninput="autoResize(this)"></textarea>
+      <button onclick="sendChat()" class="btn-send" id="btn-send">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="dev-bar">
+  <div id="dev-bar-header">
+    <span class="dev-label">Developer Bar</span>
+    <select id="dev-model">
+      <option value="claude-code">Claude Code</option>
+      <option value="claude-opus-4-6">Claude Opus</option>
+      <option value="claude-sonnet-4-5">Claude Sonnet</option>
+      <option value="gpt-5.2">GPT-5.2</option>
+      <option value="grok-4-1-fast-reasoning">Grok 4.1</option>
+      <option value="deepseek-chat">DeepSeek</option>
+    </select>
+    <span style="flex:1"></span>
+    <button class="btn-dev-clear" onclick="clearDevBar()">Clear</button>
+  </div>
+  <div id="dev-bar-chat"></div>
+  <div id="dev-bar-input">
+    <textarea id="dev-input" placeholder="Talk to an AI about code changes, architecture, debugging..."
+      rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();devSend()}"
+      oninput="autoResize(this)"></textarea>
+    <button onclick="devSend()" class="btn-dev-send" id="btn-dev-send">Send</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-modal">
+  <div class="modal">
+    <h2 id="modal-template-name">New Project</h2>
+    <div class="modal-desc" id="modal-template-desc"></div>
+    <div id="modal-team-preview" class="modal-team"></div>
+    <label for="modal-description">Project Description</label>
+    <textarea id="modal-description" placeholder="Describe what you want to build... Leave blank for auto-generated description."></textarea>
+    <label for="modal-model">Primary AI Model</label>
+    <select id="modal-model">
+      <option value="gpt-5.2">GPT-5.2</option>
+      <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+      <option value="claude-opus-4-6">Claude Opus 4.6</option>
+      <option value="grok-3">Grok 3</option>
+      <option value="deepseek-chat">DeepSeek Chat</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('create-modal')">Cancel</button>
+      <button class="btn-send" id="btn-create-project" onclick="createProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="fund-modal">
+  <div class="modal">
+    <h2>Fund Project</h2>
+    <div class="modal-desc" id="fund-modal-desc">Add budget allocation to the current project.</div>
+    <label for="fund-amount">Amount ($)</label>
+    <input type="number" id="fund-amount" placeholder="10000" min="0" step="1000">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('fund-modal')">Cancel</button>
+      <button class="btn-send" onclick="submitFund()">Fund</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================================================
+   STATE
+   =========================================================== */
+var ws = null;
+var wsConnected = false;
+var pingInterval = null;
+var templates = [];
+var projects = [];
+var currentProject = null;
+var currentProjectMessages = [];
+var currentProjectActions = [];
+var selectedTemplateId = null;
+var isThinking = false;
+var devBarOpen = false;
+var sidebarVisible = true;
+var teamMembers = [];
+
+var ICON_MAP = {
+  'rocket': '\u{1F680}',
+  'chart': '\u{1F4C8}',
+  'scale': '\u{2696}\uFE0F',
+  'megaphone': '\u{1F4E3}',
+  'microscope': '\u{1F52C}',
+  'cart': '\u{1F6D2}',
+  'lightbulb': '\u{1F4A1}',
+  'briefcase': '\u{1F4BC}'
+};
+
+/* ===========================================================
+   INIT
+   =========================================================== */
+document.addEventListener('DOMContentLoaded', function() {
+  connectWebSocket();
+  loadTemplates();
+  loadProjects();
+  loadDashboard();
+});
+
+/* ===========================================================
+   WEBSOCKET
+   =========================================================== */
+function connectWebSocket() {
+  var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var url = proto + '//' + location.host + '/api/ws';
+
+  try {
+    ws = new WebSocket(url);
+  } catch (e) {
+    console.error('[WS] Failed to create:', e);
+    setTimeout(connectWebSocket, 5000);
+    return;
+  }
+
+  ws.onopen = function() {
+    wsConnected = true;
+    updateWsIndicator();
+    console.log('[WS] Connected');
+
+    if (pingInterval) clearInterval(pingInterval);
+    pingInterval = setInterval(function() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 30000);
+  };
+
+  ws.onclose = function() {
+    wsConnected = false;
+    updateWsIndicator();
+    console.log('[WS] Disconnected, reconnecting in 3s...');
+    if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+    setTimeout(connectWebSocket, 3000);
+  };
+
+  ws.onerror = function(e) {
+    console.error('[WS] Error:', e);
+  };
+
+  ws.onmessage = function(event) {
+    try {
+      var msg = JSON.parse(event.data);
+      handleWsEvent(msg);
+    } catch (e) {
+      console.error('[WS] Parse error:', e);
+    }
+  };
+}
+
+function updateWsIndicator() {
+  var dot = document.getElementById('ws-indicator');
+  dot.className = wsConnected ? 'ws-dot connected' : 'ws-dot';
+  dot.title = wsConnected ? 'WebSocket connected' : 'WebSocket disconnected';
+}
+
+function handleWsEvent(msg) {
+  var evt = msg.event;
+  var data = msg.data || {};
+  if (!evt) return;
+
+  switch (evt) {
+    case 'pong':
+      break;
+
+    case 'message':
+      if (data && currentProject && data.project_id === currentProject.id) {
+        removeThinking();
+        addChatMessage({
+          role: data.role || 'participant',
+          participant_name: data.participant_name || 'Unknown',
+          participant_model: data.participant_model || '',
+          content: data.content || '',
+          skill_tags: data.skill_tags || []
+        });
+      }
+      break;
+
+    case 'project_created':
+      loadProjects();
+      addSystemMessage('Project created: ' + (data.name || data.id));
+      break;
+
+    case 'milestone_completed':
+      if (currentProject && data.project_id === currentProject.id) {
+        removeThinking();
+        addMilestoneMessage('Milestone completed! Project status: ' + (data.status || 'unknown'));
+        refreshProjectDetail();
+      }
+      break;
+
+    case 'project_funded':
+      if (currentProject && data.project_id === currentProject.id) {
+        addSystemMessage('Project funded: +$' + data.amount);
+        refreshProjectDetail();
+      }
+      break;
+
+    case 'project_killed':
+      if (currentProject && data.project_id === currentProject.id) {
+        addSystemMessage('Project has been killed.');
+        refreshProjectDetail();
+      }
+      break;
+
+    case 'action_resolved':
+      refreshProjectDetail();
+      loadDashboard();
+      break;
+
+    case 'error':
+      removeThinking();
+      addErrorMessage(data.message || 'Unknown error occurred');
+      break;
+
+    default:
+      console.log('[WS] Unhandled event:', evt, data);
+  }
+}
+
+/* ===========================================================
+   API HELPERS
+   =========================================================== */
+function apiFetch(path, opts) {
+  opts = opts || {};
+  var url = '/api' + path;
+  var options = {
+    method: opts.method || 'GET',
+    headers: { 'Content-Type': 'application/json' }
+  };
+  if (opts.body) {
+    options.body = JSON.stringify(opts.body);
+  }
+  return fetch(url, options).then(function(res) {
+    if (!res.ok) {
+      return res.text().then(function(errText) {
+        throw new Error('API ' + res.status + ': ' + errText);
+      });
+    }
+    return res.json();
+  });
+}
+
+/* ===========================================================
+   TEMPLATES
+   =========================================================== */
+function loadTemplates() {
+  apiFetch('/templates').then(function(data) {
+    templates = data.templates || [];
+    renderPresetBar();
+  }).catch(function(e) {
+    document.getElementById('preset-buttons').textContent = 'Failed to load templates';
+    console.error('Template load error:', e);
+  });
+}
+
+function renderPresetBar() {
+  var container = document.getElementById('preset-buttons');
+  if (templates.length === 0) {
+    container.textContent = 'No templates available';
+    return;
+  }
+  container.textContent = '';
+  templates.forEach(function(t) {
+    var btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    var icon = ICON_MAP[t.icon] || ICON_MAP['briefcase'];
+    var span1 = document.createElement('span');
+    span1.className = 'icon';
+    span1.textContent = icon;
+    btn.appendChild(span1);
+    btn.appendChild(document.createTextNode(' ' + t.name));
+    btn.title = t.description;
+    btn.setAttribute('data-template-id', t.id);
+    btn.onclick = function() { openCreateModal(t.id); };
+    container.appendChild(btn);
+  });
+}
+
+/* ===========================================================
+   CREATE PROJECT MODAL
+   =========================================================== */
+function openCreateModal(templateId) {
+  selectedTemplateId = templateId;
+  var template = templates.find(function(t) { return t.id === templateId; });
+  if (!template) return;
+
+  document.getElementById('modal-template-name').textContent = template.name;
+  document.getElementById('modal-template-desc').textContent = template.description;
+  document.getElementById('modal-description').value = '';
+
+  var teamPreview = document.getElementById('modal-team-preview');
+  teamPreview.textContent = '';
+  template.roles.forEach(function(r) {
+    var el = document.createElement('div');
+    el.className = 'modal-team-member';
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = r.color;
+    el.appendChild(dot);
+    el.appendChild(document.createTextNode(' ' + r.title + ' '));
+    var modelSpan = document.createElement('span');
+    modelSpan.style.color = '#8b949e';
+    modelSpan.style.fontSize = '10px';
+    modelSpan.textContent = r.model;
+    el.appendChild(modelSpan);
+    teamPreview.appendChild(el);
+  });
+
+  openModal('create-modal');
+}
+
+function createProject() {
+  var btn = document.getElementById('btn-create-project');
+  var desc = document.getElementById('modal-description').value.trim();
+  var model = document.getElementById('modal-model').value;
+
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  apiFetch('/projects', {
+    method: 'POST',
+    body: { template_id: selectedTemplateId, description: desc, model: model }
+  }).then(function(result) {
+    closeModal('create-modal');
+    loadProjects().then(function() {
+      selectProject(result.id);
+    });
+    addSystemMessage('Project "' + result.name + '" created with ' + (result.team ? result.team.length : 0) + ' team members and ' + (result.milestones ? result.milestones.length : 0) + ' milestones.');
+  }).catch(function(e) {
+    addErrorMessage('Failed to create project: ' + e.message);
+  }).finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Create Project';
+  });
+}
+
+/* ===========================================================
+   PROJECTS
+   =========================================================== */
+function loadProjects() {
+  return apiFetch('/projects').then(function(data) {
+    projects = data.projects || [];
+    renderProjectsList();
+  }).catch(function(e) {
+    console.error('Failed to load projects:', e);
+  });
+}
+
+function renderProjectsList() {
+  var container = document.getElementById('projects-list');
+  if (projects.length === 0) {
+    container.textContent = '';
+    var notice = document.createElement('div');
+    notice.className = 'no-project-notice';
+    notice.textContent = 'No projects yet. Click a template above to start.';
+    container.appendChild(notice);
+    return;
+  }
+
+  container.textContent = '';
+  var sorted = projects.slice().sort(function(a, b) {
+    var order = { active: 0, planning: 1, proposal: 2, paused: 3, completed: 4, killed: 5 };
+    return (order[a.status] || 9) - (order[b.status] || 9);
+  });
+
+  sorted.forEach(function(p) {
+    var el = document.createElement('div');
+    el.className = 'project-list-item' + (currentProject && currentProject.id === p.id ? ' selected' : '');
+
+    var row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'proj-name';
+    nameSpan.textContent = p.name;
+    row.appendChild(nameSpan);
+
+    var badge = document.createElement('span');
+    badge.className = 'status-badge status-' + p.status;
+    badge.textContent = p.status;
+    row.appendChild(badge);
+
+    el.appendChild(row);
+
+    var tmpl = document.createElement('div');
+    tmpl.className = 'proj-template';
+    tmpl.textContent = p.template_id + ' \u00B7 ' + (p.team ? p.team.length : 0) + ' members';
+    el.appendChild(tmpl);
+
+    el.setAttribute('data-project-id', p.id);
+    el.onclick = function() { selectProject(p.id); };
+    container.appendChild(el);
+  });
+}
+
+function selectProject(projectId) {
+  apiFetch('/projects/' + projectId).then(function(data) {
+    currentProject = data.project;
+    currentProjectMessages = data.messages || [];
+    currentProjectActions = data.actions || [];
+
+    teamMembers = (currentProject.team || []).map(function(m) {
+      return Object.assign({}, m, { enabled: true });
+    });
+    renderTeam();
+    renderProjectDetail();
+    renderProjectsList();
+    renderChatHistory();
+    switchTab('people');
+
+    var empty = document.getElementById('empty-chat');
+    if (empty) empty.style.display = 'none';
+  }).catch(function(e) {
+    addErrorMessage('Failed to load project: ' + e.message);
+  });
+}
+
+function refreshProjectDetail() {
+  if (!currentProject) return;
+  apiFetch('/projects/' + currentProject.id).then(function(data) {
+    currentProject = data.project;
+    currentProjectActions = data.actions || [];
+    renderProjectDetail();
+    renderProjectsList();
+  }).catch(function(e) {
+    console.error('Failed to refresh project:', e);
+  });
+}
+
+function renderProjectDetail() {
+  if (!currentProject) return;
+
+  document.getElementById('project-detail-section').style.display = 'block';
+
+  // Milestones
+  var mList = document.getElementById('milestones-list');
+  var milestones = currentProject.milestones || [];
+  mList.textContent = '';
+  if (milestones.length === 0) {
+    var noM = document.createElement('div');
+    noM.style.fontSize = '12px';
+    noM.style.color = '#8b949e';
+    noM.textContent = 'No milestones yet.';
+    mList.appendChild(noM);
+  } else {
+    milestones.forEach(function(m) {
+      var item = document.createElement('div');
+      item.className = 'milestone-item';
+
+      var dot = document.createElement('span');
+      dot.className = 'milestone-dot ' + m.status;
+      item.appendChild(dot);
+
+      var title = document.createElement('span');
+      title.className = 'milestone-title';
+      title.textContent = m.title;
+      item.appendChild(title);
+
+      var status = document.createElement('span');
+      status.className = 'milestone-status';
+      status.textContent = m.status;
+      item.appendChild(status);
+
+      mList.appendChild(item);
+    });
+  }
+
+  // Budget
+  var budgetEl = document.getElementById('budget-display');
+  var allocated = currentProject.budget_allocated || 0;
+  var spent = currentProject.budget_spent || 0;
+  var pct = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
+  budgetEl.textContent = '';
+
+  var budgetBar = document.createElement('div');
+  budgetBar.className = 'budget-bar';
+
+  var budgetLabel = document.createElement('div');
+  budgetLabel.className = 'budget-label';
+
+  var labelLeft = document.createElement('span');
+  labelLeft.textContent = 'Budget';
+  budgetLabel.appendChild(labelLeft);
+
+  var labelRight = document.createElement('span');
+  labelRight.textContent = '$' + formatNum(spent) + ' / $' + formatNum(allocated);
+  budgetLabel.appendChild(labelRight);
+
+  budgetBar.appendChild(budgetLabel);
+
+  var track = document.createElement('div');
+  track.className = 'budget-track';
+  var fill = document.createElement('div');
+  fill.className = 'budget-fill';
+  fill.style.width = pct + '%';
+  track.appendChild(fill);
+  budgetBar.appendChild(track);
+
+  budgetEl.appendChild(budgetBar);
+
+  // Button states
+  var status = currentProject.status;
+  document.getElementById('btn-advance').disabled = (status === 'killed' || status === 'completed');
+  document.getElementById('btn-kill').disabled = (status === 'killed' || status === 'completed');
+
+  // Actions
+  var aList = document.getElementById('actions-list');
+  var pendingActions = currentProjectActions.filter(function(a) { return a.status === 'pending'; });
+  aList.textContent = '';
+  if (pendingActions.length === 0) {
+    var noA = document.createElement('div');
+    noA.style.fontSize = '12px';
+    noA.style.color = '#8b949e';
+    noA.textContent = 'No pending actions.';
+    aList.appendChild(noA);
+  } else {
+    pendingActions.forEach(function(a) {
+      var item = document.createElement('div');
+      item.className = 'action-item' + (a.urgency === 'critical' ? ' critical' : '');
+
+      var title = document.createElement('div');
+      title.className = 'action-title';
+      title.textContent = a.title;
+      item.appendChild(title);
+
+      var desc = document.createElement('div');
+      desc.className = 'action-desc';
+      desc.textContent = a.description;
+      item.appendChild(desc);
+
+      var resolveBtn = document.createElement('button');
+      resolveBtn.className = 'btn-resolve';
+      resolveBtn.textContent = 'Resolve';
+      resolveBtn.setAttribute('data-action-id', a.id);
+      resolveBtn.onclick = function() { resolveAction(a.id); };
+      item.appendChild(resolveBtn);
+
+      aList.appendChild(item);
+    });
+  }
+}
+
+/* ===========================================================
+   PROJECT ACTIONS
+   =========================================================== */
+function advanceProject() {
+  if (!currentProject) return;
+  var btn = document.getElementById('btn-advance');
+  btn.disabled = true;
+  btn.textContent = 'Advancing...';
+
+  apiFetch('/projects/' + currentProject.id + '/advance', { method: 'POST' }).then(function() {
+    showThinking('Executing milestone...');
+    addSystemMessage('Advancing to next milestone...');
+  }).catch(function(e) {
+    addErrorMessage('Failed to advance: ' + e.message);
+  }).finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Advance';
+  });
+}
+
+function openFundModal() {
+  if (!currentProject) return;
+  document.getElementById('fund-modal-desc').textContent =
+    'Add budget to "' + currentProject.name + '". Current: $' + formatNum(currentProject.budget_allocated || 0);
+  document.getElementById('fund-amount').value = '';
+  openModal('fund-modal');
+}
+
+function submitFund() {
+  if (!currentProject) return;
+  var amount = parseFloat(document.getElementById('fund-amount').value);
+  if (isNaN(amount) || amount <= 0) {
+    alert('Please enter a valid amount.');
+    return;
+  }
+  apiFetch('/projects/' + currentProject.id + '/fund', {
+    method: 'POST',
+    body: { amount: amount }
+  }).then(function() {
+    closeModal('fund-modal');
+    refreshProjectDetail();
+  }).catch(function(e) {
+    addErrorMessage('Failed to fund: ' + e.message);
+  });
+}
+
+function killProject() {
+  if (!currentProject) return;
+  if (!confirm('Kill project "' + currentProject.name + '"? This cannot be undone.')) return;
+  apiFetch('/projects/' + currentProject.id + '/kill', { method: 'POST' }).then(function() {
+    refreshProjectDetail();
+    loadProjects();
+  }).catch(function(e) {
+    addErrorMessage('Failed to kill project: ' + e.message);
+  });
+}
+
+function resolveAction(actionId) {
+  apiFetch('/actions/' + actionId + '/resolve', { method: 'POST' }).then(function() {
+    refreshProjectDetail();
+  }).catch(function(e) {
+    addErrorMessage('Failed to resolve action: ' + e.message);
+  });
+}
+
+/* ===========================================================
+   TEAM (PEOPLE TAB)
+   =========================================================== */
+function renderTeam() {
+  var container = document.getElementById('team-list');
+  container.textContent = '';
+
+  if (teamMembers.length === 0) {
+    var notice = document.createElement('div');
+    notice.className = 'no-project-notice';
+    notice.textContent = 'Select a template or create a project to see the team.';
+    container.appendChild(notice);
+    return;
+  }
+
+  teamMembers.forEach(function(m, idx) {
+    var el = document.createElement('div');
+    el.className = 'participant-item' + (m.enabled !== false ? ' active' : '');
+
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = m.color || '#6b7280';
+    el.appendChild(dot);
+
+    var info = document.createElement('div');
+    info.className = 'info';
+
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'pname';
+    nameDiv.textContent = m.role;
+    if (m.is_lead) {
+      var leadBadge = document.createElement('span');
+      leadBadge.className = 'lead-badge';
+      leadBadge.textContent = 'Lead';
+      leadBadge.style.marginLeft = '6px';
+      nameDiv.appendChild(leadBadge);
+    }
+    info.appendChild(nameDiv);
+
+    var metaDiv = document.createElement('div');
+    metaDiv.className = 'pmeta';
+    metaDiv.textContent = m.model;
+    info.appendChild(metaDiv);
+
+    if (m.skills && m.skills.length > 0) {
+      var tagsDiv = document.createElement('div');
+      tagsDiv.className = 'skill-tags';
+      m.skills.forEach(function(s) {
+        var tag = document.createElement('span');
+        tag.className = 'skill-tag';
+        tag.textContent = s;
+        tagsDiv.appendChild(tag);
+      });
+      info.appendChild(tagsDiv);
+    }
+
+    el.appendChild(info);
+
+    var toggle = document.createElement('div');
+    toggle.className = 'toggle-switch';
+    toggle.onclick = function(e) {
+      e.stopPropagation();
+      toggleMember(idx);
+    };
+    el.appendChild(toggle);
+
+    el.onclick = function() { toggleMember(idx); };
+    container.appendChild(el);
+  });
+}
+
+function toggleMember(idx) {
+  if (teamMembers[idx]) {
+    teamMembers[idx].enabled = !teamMembers[idx].enabled;
+    renderTeam();
+  }
+}
+
+/* ===========================================================
+   CHAT
+   =========================================================== */
+function renderChatHistory() {
+  var chat = document.getElementById('chat');
+  var empty = document.getElementById('empty-chat');
+  if (empty) empty.remove();
+
+  chat.textContent = '';
+
+  if (currentProject) {
+    addSystemMessage('Project: ' + currentProject.name + ' (' + currentProject.status + ')');
+  }
+
+  currentProjectMessages.forEach(function(msg) {
+    addChatMessage(msg, false);
+  });
+
+  scrollChat();
+}
+
+function addChatMessage(msg, scroll) {
+  if (scroll === undefined) scroll = true;
+  var chat = document.getElementById('chat');
+  var empty = document.getElementById('empty-chat');
+  if (empty) empty.style.display = 'none';
+
+  var el = document.createElement('div');
+
+  if (msg.role === 'user') {
+    el.className = 'message user';
+
+    var sender = document.createElement('div');
+    sender.className = 'sender';
+    var sDot = document.createElement('span');
+    sDot.className = 'dot';
+    sDot.style.background = '#fbbf24';
+    sender.appendChild(sDot);
+    var sName = document.createElement('span');
+    sName.style.color = '#fbbf24';
+    sName.textContent = msg.participant_name || 'CEO';
+    sender.appendChild(sName);
+    el.appendChild(sender);
+
+    var content = document.createElement('div');
+    content.className = 'content';
+    content.textContent = msg.content;
+    el.appendChild(content);
+
+  } else if (msg.role === 'system') {
+    el.className = 'message system-msg';
+    var content = document.createElement('div');
+    content.className = 'content';
+    content.textContent = msg.content;
+    el.appendChild(content);
+
+  } else {
+    var color = getParticipantColor(msg.participant_name);
+    el.className = 'message assistant';
+
+    var sender = document.createElement('div');
+    sender.className = 'sender';
+    var sDot = document.createElement('span');
+    sDot.className = 'dot';
+    sDot.style.background = color;
+    sender.appendChild(sDot);
+    var sName = document.createElement('span');
+    sName.style.color = color;
+    sName.textContent = msg.participant_name || 'AI';
+    sender.appendChild(sName);
+    if (msg.participant_model) {
+      var modelSpan = document.createElement('span');
+      modelSpan.className = 'model-id';
+      modelSpan.textContent = msg.participant_model;
+      sender.appendChild(modelSpan);
+    }
+    el.appendChild(sender);
+
+    var content = document.createElement('div');
+    content.className = 'content';
+    renderFormattedContent(content, msg.content || '');
+    el.appendChild(content);
+
+    if (msg.skill_tags && msg.skill_tags.length > 0) {
+      var tagsDiv = document.createElement('div');
+      tagsDiv.className = 'msg-tags';
+      msg.skill_tags.forEach(function(t) {
+        var tag = document.createElement('span');
+        tag.className = 'skill-tag';
+        tag.textContent = t;
+        tagsDiv.appendChild(tag);
+      });
+      el.appendChild(tagsDiv);
+    }
+  }
+
+  chat.appendChild(el);
+  if (scroll) scrollChat();
+}
+
+function renderFormattedContent(container, text) {
+  /* Splits content into code blocks and text segments,
+     rendering code blocks as <pre><code> and text as text nodes. */
+  var parts = text.split(/(```[\s\S]*?```)/g);
+  parts.forEach(function(part) {
+    if (part.match(/^```/)) {
+      var code = part.replace(/^```\w*\n?/, '').replace(/```$/, '');
+      var pre = document.createElement('pre');
+      var codeEl = document.createElement('code');
+      codeEl.textContent = code;
+      pre.appendChild(codeEl);
+      container.appendChild(pre);
+    } else {
+      /* For non-code text, handle inline code and leave as textContent */
+      var inlineParts = part.split(/(`[^`]+`)/g);
+      inlineParts.forEach(function(ip) {
+        if (ip.match(/^`/) && ip.match(/`$/)) {
+          var codeEl = document.createElement('code');
+          codeEl.textContent = ip.slice(1, -1);
+          container.appendChild(codeEl);
+        } else {
+          container.appendChild(document.createTextNode(ip));
+        }
+      });
+    }
+  });
+}
+
+function addSystemMessage(text) {
+  addChatMessage({ role: 'system', content: text, participant_name: '', skill_tags: [] });
+}
+
+function addMilestoneMessage(text) {
+  var chat = document.getElementById('chat');
+  var el = document.createElement('div');
+  el.className = 'message milestone-msg';
+  var content = document.createElement('div');
+  content.className = 'content';
+  content.textContent = text;
+  el.appendChild(content);
+  chat.appendChild(el);
+  scrollChat();
+}
+
+function addErrorMessage(text) {
+  var chat = document.getElementById('chat');
+  var el = document.createElement('div');
+  el.className = 'message error-msg';
+  var content = document.createElement('div');
+  content.className = 'content';
+  content.textContent = text;
+  el.appendChild(content);
+  chat.appendChild(el);
+  scrollChat();
+}
+
+function showThinking(label) {
+  removeThinking();
+  isThinking = true;
+  var chat = document.getElementById('chat');
+  var el = document.createElement('div');
+  el.className = 'thinking-indicator';
+  el.id = 'thinking';
+
+  var dots = document.createElement('div');
+  dots.className = 'thinking-dots';
+  for (var i = 0; i < 3; i++) {
+    dots.appendChild(document.createElement('span'));
+  }
+  el.appendChild(dots);
+  el.appendChild(document.createTextNode(label || 'Team is thinking...'));
+  chat.appendChild(el);
+  scrollChat();
+}
+
+function removeThinking() {
+  isThinking = false;
+  var el = document.getElementById('thinking');
+  if (el) el.remove();
+}
+
+function scrollChat() {
+  var chat = document.getElementById('chat');
+  requestAnimationFrame(function() {
+    chat.scrollTop = chat.scrollHeight;
+  });
+}
+
+/* ===========================================================
+   SEND CHAT
+   =========================================================== */
+function sendChat() {
+  if (!currentProject) {
+    addErrorMessage('No project selected. Create or select a project first.');
+    return;
+  }
+
+  var input = document.getElementById('input');
+  var text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  autoResize(input);
+
+  addChatMessage({
+    role: 'user',
+    participant_name: 'CEO',
+    content: text,
+    skill_tags: []
+  });
+
+  showThinking('Team is responding...');
+
+  apiFetch('/projects/' + currentProject.id + '/chat', {
+    method: 'POST',
+    body: { content: text }
+  }).catch(function(e) {
+    removeThinking();
+    addErrorMessage('Failed to send message: ' + e.message);
+  });
+}
+
+function handleInputKey(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendChat();
+  }
+}
+
+/* ===========================================================
+   DEV BAR
+   =========================================================== */
+function toggleDevBar() {
+  devBarOpen = !devBarOpen;
+  var bar = document.getElementById('dev-bar');
+  var toggle = document.getElementById('dev-bar-toggle');
+  if (devBarOpen) {
+    bar.classList.add('open');
+    toggle.classList.add('active');
+  } else {
+    bar.classList.remove('open');
+    toggle.classList.remove('active');
+  }
+}
+
+function clearDevBar() {
+  document.getElementById('dev-bar-chat').textContent = '';
+}
+
+function devSend() {
+  if (!currentProject) {
+    addDevMessage('system', 'No project selected. Create or select a project first.');
+    return;
+  }
+
+  var input = document.getElementById('dev-input');
+  var text = input.value.trim();
+  if (!text) return;
+
+  var model = document.getElementById('dev-model').value;
+  input.value = '';
+  autoResize(input);
+
+  addDevMessage('user', text);
+
+  var chatEl = document.getElementById('dev-bar-chat');
+  var thinkEl = document.createElement('div');
+  thinkEl.className = 'dev-thinking';
+  thinkEl.id = 'dev-thinking';
+  var dots = document.createElement('div');
+  dots.className = 'thinking-dots';
+  for (var i = 0; i < 3; i++) dots.appendChild(document.createElement('span'));
+  thinkEl.appendChild(dots);
+  thinkEl.appendChild(document.createTextNode(' Thinking...'));
+  chatEl.appendChild(thinkEl);
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  apiFetch('/projects/' + currentProject.id + '/chat', {
+    method: 'POST',
+    body: {
+      content: '[DEV BAR] ' + text,
+      directed_to: model
+    }
+  }).then(function() {
+    var dt = document.getElementById('dev-thinking');
+    if (dt) dt.remove();
+    addDevMessage('system', 'Message sent to ' + model + '. Response will appear in main chat.');
+  }).catch(function(e) {
+    var dt = document.getElementById('dev-thinking');
+    if (dt) dt.remove();
+    addDevMessage('system', 'Error: ' + e.message);
+  });
+}
+
+function addDevMessage(type, content) {
+  var chatEl = document.getElementById('dev-bar-chat');
+  var el = document.createElement('div');
+
+  if (type === 'user') {
+    el.className = 'dev-msg user';
+    var c = document.createElement('div');
+    c.className = 'dev-content';
+    c.textContent = content;
+    el.appendChild(c);
+  } else {
+    el.className = 'dev-msg assistant';
+    var sender = document.createElement('div');
+    sender.className = 'dev-sender';
+    sender.textContent = type === 'system' ? 'System' : type;
+    el.appendChild(sender);
+    var c = document.createElement('div');
+    c.className = 'dev-content';
+    c.textContent = content;
+    el.appendChild(c);
+  }
+
+  chatEl.appendChild(el);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+/* ===========================================================
+   DASHBOARD
+   =========================================================== */
+function loadDashboard() {
+  apiFetch('/dashboard').then(function(data) {
+    document.getElementById('dash-active').textContent = (data.active_projects || []).length;
+    document.getElementById('dash-planning').textContent = (data.planning_projects || []).length;
+    document.getElementById('dash-budget').textContent = '$' + formatNum((data.financials && data.financials.total_allocated) || 0);
+    document.getElementById('dash-spent').textContent = '$' + formatNum((data.financials && data.financials.total_spent) || 0);
+
+    var actionsEl = document.getElementById('dash-actions');
+    var actions = data.pending_actions || [];
+    actionsEl.textContent = '';
+    if (actions.length === 0) {
+      var noA = document.createElement('div');
+      noA.style.fontSize = '12px';
+      noA.style.color = '#8b949e';
+      noA.textContent = 'No pending actions.';
+      actionsEl.appendChild(noA);
+    } else {
+      actions.slice(0, 5).forEach(function(a) {
+        var item = document.createElement('div');
+        item.className = 'action-item' + (a.urgency === 'critical' ? ' critical' : '');
+        var title = document.createElement('div');
+        title.className = 'action-title';
+        title.textContent = a.title;
+        item.appendChild(title);
+        var desc = document.createElement('div');
+        desc.className = 'action-desc';
+        desc.textContent = (a.description || '').substring(0, 100);
+        item.appendChild(desc);
+        actionsEl.appendChild(item);
+      });
+    }
+
+    var projEl = document.getElementById('dash-projects');
+    var allProjs = (data.active_projects || []).concat(data.planning_projects || []).concat(data.proposals || []);
+    projEl.textContent = '';
+    if (allProjs.length === 0) {
+      var noP = document.createElement('div');
+      noP.style.fontSize = '12px';
+      noP.style.color = '#8b949e';
+      noP.textContent = 'No projects.';
+      projEl.appendChild(noP);
+    } else {
+      allProjs.slice(0, 5).forEach(function(p) {
+        var item = document.createElement('div');
+        item.className = 'project-list-item';
+
+        var row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'proj-name';
+        nameSpan.textContent = p.name;
+        row.appendChild(nameSpan);
+
+        var badge = document.createElement('span');
+        badge.className = 'status-badge status-' + p.status;
+        badge.textContent = p.status;
+        row.appendChild(badge);
+
+        item.appendChild(row);
+        item.onclick = function() { selectProject(p.id); switchTab('projects'); };
+        projEl.appendChild(item);
+      });
+    }
+
+  }).catch(function(e) {
+    console.error('Dashboard load failed:', e);
+  });
+}
+
+/* ===========================================================
+   SIDEBAR
+   =========================================================== */
+function toggleSidebar() {
+  sidebarVisible = !sidebarVisible;
+  var sidebar = document.getElementById('sidebar');
+  var btn = document.getElementById('btn-sidebar');
+  if (sidebarVisible) {
+    sidebar.classList.remove('hidden');
+    btn.classList.remove('active');
+  } else {
+    sidebar.classList.add('hidden');
+    btn.classList.add('active');
+  }
+}
+
+function switchTab(tabName) {
+  document.querySelectorAll('.sidebar-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+  });
+
+  document.querySelectorAll('.sidebar-panel').forEach(function(panel) {
+    panel.classList.toggle('active', panel.id === 'panel-' + tabName);
+  });
+
+  if (tabName === 'dashboard') loadDashboard();
+  if (tabName === 'projects') loadProjects();
+}
+
+/* ===========================================================
+   MODALS
+   =========================================================== */
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(function(m) {
+      m.classList.remove('open');
+    });
+  }
+});
+
+/* ===========================================================
+   CLEAR
+   =========================================================== */
+function clearChat() {
+  var chat = document.getElementById('chat');
+  chat.textContent = '';
+  if (!currentProject) {
+    var empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.id = 'empty-chat';
+
+    var icon = document.createElement('div');
+    icon.className = 'big-icon';
+    icon.textContent = '\u{1F3E2}';
+    empty.appendChild(icon);
+
+    var h3 = document.createElement('h3');
+    h3.textContent = 'Welcome to MeshCorp HQ';
+    empty.appendChild(h3);
+
+    var p = document.createElement('p');
+    p.textContent = 'Click a template above to create a project, or select an existing project from the sidebar. Your AI team will assemble and start working.';
+    empty.appendChild(p);
+
+    chat.appendChild(empty);
+  }
+}
+
+/* ===========================================================
+   UTILITIES
+   =========================================================== */
+function formatNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return Math.round(n).toString();
+}
+
+function getParticipantColor(name) {
+  if (!name) return '#8b949e';
+  if (name === 'CEO') return '#fbbf24';
+
+  var member = teamMembers.find(function(m) { return m.role === name; });
+  if (member && member.color) return member.color;
+
+  var hash = 0;
+  for (var i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  var colors = ['#58a6ff', '#3fb950', '#d2a8ff', '#f0883e', '#f85149', '#79c0ff', '#7ee787', '#a5d6ff', '#ec4899', '#d97706'];
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  var maxH = parseInt(getComputedStyle(el).maxHeight) || 120;
+  el.style.height = Math.min(el.scrollHeight, maxH) + 'px';
+}
+</script>
+</body>
+</html>

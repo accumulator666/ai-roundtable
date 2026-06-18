@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 venv/
+*.bak
+collab-chat/backups/
+collab-chat/edit_log.md
+collab-chat/IMPROVEMENTS.md
+.worktrees/

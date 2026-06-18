@@ -1,0 +1,11 @@
+{
+  "name": "MeshCapital",
+  "description": "Investment company — manages portfolio, deploys profits from subsidiaries",
+  "budget_limit_per_action": 200,
+  "budget_limit_daily": 1000,
+  "revenue_model": "Trading profits + dividend income + interest",
+  "integrations": {
+    "options_trader": "http://192.168.50.23:8140",
+    "stripe": true
+  }
+}

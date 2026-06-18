@@ -65,3 +65,19 @@ CREATE INDEX IF NOT EXISTS idx_ledger_type ON budget_ledger(transaction_type);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON agent_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent ON agent_tasks(agent);
 CREATE INDEX IF NOT EXISTS idx_memory_key ON shared_memory(key);
+
+-- Agent job history (persists across restarts)
+CREATE TABLE IF NOT EXISTS agent_job_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id TEXT NOT NULL,
+    job_type TEXT NOT NULL,
+    status TEXT DEFAULT 'queued',
+    description TEXT,
+    result TEXT,
+    triggered_by TEXT DEFAULT 'manual',
+    started_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_history_status ON agent_job_history(status);
+CREATE INDEX IF NOT EXISTS idx_job_history_type ON agent_job_history(job_type);
