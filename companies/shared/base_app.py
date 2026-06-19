@@ -209,6 +209,14 @@ def create_company_app(
                 data = resp.json()
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 update_stats(model_id, True, elapsed_ms)
+                usage = data.get("usage") or {}
+                asyncio.create_task(_audit(
+                    "model_call", actor=model_name, actor_type="model",
+                    entity_type="model_call", success=True,
+                    latency_ms=round(elapsed_ms),
+                    prompt_tokens=usage.get("prompt_tokens"),
+                    completion_tokens=usage.get("completion_tokens"),
+                    total_tokens=usage.get("total_tokens")))
                 return data["choices"][0]["message"]["content"]
             except httpx.TimeoutException:
                 last_error = f"[Timeout: {model_name} took too long]"
@@ -222,7 +230,21 @@ def create_company_app(
 
         elapsed_ms = (time.perf_counter() - start) * 1000
         update_stats(model_id, False, elapsed_ms, "error", last_error)
+        asyncio.create_task(_audit(
+            "model_call", actor=model_name, actor_type="model",
+            entity_type="model_call", success=False,
+            latency_ms=round(elapsed_ms), error=last_error[:200]))
         return last_error
+
+    async def _audit(action: str, actor: str, actor_type: str = "system",
+                     entity_type: Optional[str] = None, entity_id: Optional[str] = None,
+                     **details) -> None:
+        """Fire-and-forget audit. No-op if DB not initialized; log_event swallows errors."""
+        if not company_db_id:
+            return
+        from shared.db import log_event
+        await log_event(company_db_id, actor_type, actor, action,
+                        entity_type, entity_id, details or None)
 
     def build_messages(participant: dict, history: list[dict], limit: int = HISTORY_LIMIT_ROUND) -> list[dict]:
         company_name = company_config.get("name", COMPANY_CODE)
@@ -461,6 +483,9 @@ def create_company_app(
                     "action": action_type, "description": description.strip(),
                     "status": "pending",
                 }
+                await _audit("decision_detected", actor="Synthesizer", actor_type="system",
+                             entity_type="decision", entity_id=decision_id,
+                             description=description)
                 await ws_broadcast({
                     "type": "decision_detected", "decision_id": decision_id,
                     "action": action_type, "description": description.strip()[:200],
@@ -479,6 +504,9 @@ def create_company_app(
                         "action": action_type, "description": desc.strip(),
                         "status": "pending",
                     }
+                    await _audit("decision_detected", actor="Synthesizer", actor_type="system",
+                                 entity_type="decision", entity_id=decision_id,
+                                 description=desc)
                     await ws_broadcast({
                         "type": "decision_detected", "decision_id": decision_id,
                         "action": action_type, "description": desc.strip()[:200],
@@ -904,6 +932,8 @@ Rules:
                     decision = pending_decisions.get(did)
                     if decision and decision["status"] == "pending":
                         decision["status"] = "executing"
+                        await _audit("decision_approved", actor="CEO", actor_type="agent",
+                                     entity_type="decision", entity_id=did)
                         await ws_broadcast({"type": "decision_executing", "decision_id": did})
                         asyncio.create_task(trigger_agent_job(
                             decision["action"], decision["description"],
@@ -912,6 +942,8 @@ Rules:
                     did = data.get("decision_id", "")
                     if did in pending_decisions:
                         pending_decisions[did]["status"] = "rejected"
+                        await _audit("decision_rejected", actor="CEO", actor_type="agent",
+                                     entity_type="decision", entity_id=did)
                         await ws_broadcast({"type": "decision_rejected", "decision_id": did})
         except WebSocketDisconnect:
             if websocket in connected_clients:

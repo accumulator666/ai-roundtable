@@ -375,6 +375,22 @@ async def get_activity(company_id: UUID, limit: int = 100,
     return [dict(r) for r in rows]
 
 
+async def log_event(company_id: UUID, actor_type: str, actor: str, action: str,
+                    entity_type: Optional[str] = None, entity_id: Optional[str] = None,
+                    details: Optional[dict] = None) -> None:
+    """Append-only audit write. NEVER raises — audit failure must not break a meeting."""
+    try:
+        pool = await get_pool()
+        await pool.execute("""
+            INSERT INTO activity_log
+                (company_id, actor_type, actor, action, entity_type, entity_id, details)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        """, company_id, actor_type, actor, action, entity_type, entity_id,
+             json.dumps(details or {}))
+    except Exception as e:
+        logger.warning(f"audit log_event failed ({action}): {e}")
+
+
 # ============================================================
 # Projects (Fortune 500 workflow)
 # ============================================================
