@@ -1022,6 +1022,21 @@ Rules:
         except Exception as e:
             return {"error": str(e)}
 
+    @app.get("/api/activity")
+    async def api_activity(limit: int = 100, action: Optional[str] = None):
+        """Append-only audit trail for this company (newest first)."""
+        if not company_db_id:
+            return {"company": COMPANY_CODE, "count": 0, "activity": []}
+        from shared.db import get_activity
+        rows = await get_activity(company_db_id, limit=limit, action=action)
+        for r in rows:
+            r["id"] = str(r["id"])
+            if r.get("company_id"):
+                r["company_id"] = str(r["company_id"])
+            if r.get("occurred_at"):
+                r["occurred_at"] = r["occurred_at"].isoformat()
+        return {"company": COMPANY_CODE, "count": len(rows), "activity": rows}
+
     # Agent job endpoints
     @app.get("/api/dashboard")
     async def dashboard():
