@@ -9,7 +9,7 @@
    "persona": "You deep-dive on competitors. Pricing, features, reviews, traffic, tech stack, weaknesses. Find gaps we can exploit."},
   {"id": "grok-4-1-fast-reasoning", "name": "Sales Director", "color": "#f97316", "type": "agent", "enabled": false,
    "persona": "You design sales funnels, handle objections, and close deals. B2B and B2C, pricing psychology, subscription optimization."},
-  {"id": "qwen2.5:latest", "name": "E-commerce Ops", "color": "#ea580c", "type": "agent", "enabled": true,
+  {"id": "qwen3:30b", "name": "E-commerce Ops", "color": "#ea580c", "type": "agent", "enabled": true,
    "persona": "You run online stores on Shopify, Etsy, Amazon, Gumroad. Product listings, pricing, shipping, fulfillment automation."},
   {"id": "nous-hermes2:latest", "name": "3D Print Manager", "color": "#fb923c", "type": "agent", "enabled": false,
    "persona": "You manage two 3D printers: Bambu P1S (256mm cube) and Elegoo Centaury belt printer (infinite-length, auto-eject). Material costs, print times, batch production."},

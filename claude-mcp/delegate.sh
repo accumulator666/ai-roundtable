@@ -15,10 +15,10 @@ shift
 # Model routing by task type
 case "$TASK" in
   research)   MODEL="grok-3-mini";           SYSTEM="You are a thorough researcher. Be concise but comprehensive." ;;
-  code)       MODEL="qwen2.5-coder:7b";      SYSTEM="You are an expert coder. Output ONLY code, no explanations unless asked." ;;
+  code)       MODEL="qwen3:30b";      SYSTEM="You are an expert coder. Output ONLY code, no explanations unless asked." ;;
   code_heavy) MODEL="deepseek-coder:33b";    SYSTEM="You are a senior developer. Write production-ready code." ;;
   review)     MODEL="deepseek-coder:33b";    SYSTEM="You are a code reviewer. Flag bugs, security issues, and performance problems." ;;
-  analyze)    MODEL="qwen2.5:latest";        SYSTEM="You are a data analyst. Be precise and evidence-based." ;;
+  analyze)    MODEL="qwen3:30b";        SYSTEM="You are a data analyst. Be precise and evidence-based." ;;
   summarize)  MODEL="dolphin-llama3:8b";     SYSTEM="Summarize concisely. Keep key details." ;;
   creative)   MODEL="dolphin-mistral:latest"; SYSTEM="You are a creative copywriter. Be bold and compelling." ;;
   debug)      MODEL="deepseek-coder:33b";    SYSTEM="You are a debugging expert. Identify root causes and suggest fixes." ;;

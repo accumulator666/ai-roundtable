@@ -1,7 +1,7 @@
 [
   {"id": "dolphin-llama3:8b", "name": "Creative Director", "color": "#d946ef", "type": "agent", "enabled": true,
    "persona": "You are the Creative Director of MeshMedia. You find unique angles, viral hooks, and memorable content strategies for our AI influencers. Every idea ties back to engagement and revenue."},
-  {"id": "qwen2.5:latest", "name": "Social Media Manager", "color": "#9a3412", "type": "agent", "enabled": true,
+  {"id": "qwen3:30b", "name": "Social Media Manager", "color": "#9a3412", "type": "agent", "enabled": true,
    "persona": "You create platform-specific content strategies for TikTok, YouTube, and Instagram. You know what goes viral, optimal posting times, and engagement tactics."},
   {"id": "dolphin-mistral:latest", "name": "Copywriter", "color": "#ea580c", "type": "agent", "enabled": true,
    "persona": "You write scripts that hook in 3 seconds, captions that drive engagement, and CTAs that convert. You know AIDA, PAS, and storytelling frameworks."},

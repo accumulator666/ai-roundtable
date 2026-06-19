@@ -6,7 +6,7 @@ Delegates research, code generation, code review, analysis, and summarization
 to cheaper/free models so Claude Code (Opus) saves tokens for orchestration.
 
 Cost tiers:
-  FREE  — Local Ollama models (qwen2.5-coder:7b, deepseek-coder:33b, dolphin-llama3:8b, etc.)
+  FREE  — Local Ollama models (qwen3-coder:30b, deepseek-coder:33b, dolphin-llama3:8b, etc.)
   CHEAP — grok-3-mini
   $$    — claude-sonnet-4-5, gpt-4o (only when quality demands it)
 """
@@ -25,10 +25,10 @@ TIMEOUT = 120  # seconds per model call
 
 # Model routing table — cheapest capable model for each task type
 ROUTING = {
-    "code":      "qwen2.5-coder:7b",       # FREE — great at code
+    "code":      "qwen3-coder:30b",          # FREE — great at code
     "code_heavy": "deepseek-coder:33b",     # FREE — complex code tasks
     "research":  "grok-3-mini",             # CHEAP — good reasoning + web knowledge
-    "analysis":  "qwen2.5:latest",          # FREE — solid general analysis
+    "analysis":  "qwen3:30b",               # FREE — solid general analysis
     "creative":  "dolphin-mistral:latest",  # FREE — uncensored creative
     "general":   "nous-hermes2:latest",     # FREE — good all-rounder
     "reasoning": "grok-3-mini",             # CHEAP — strong reasoning
@@ -39,9 +39,9 @@ ROUTING = {
 # All available models
 MODELS = {
     # Local (FREE)
-    "qwen2.5-coder:7b": {"cost": "free", "good_at": "code generation, code review, debugging"},
+    "qwen3-coder:30b": {"cost": "free", "good_at": "code generation, code review, debugging"},
     "deepseek-coder:33b": {"cost": "free", "good_at": "complex code, architecture, algorithms"},
-    "qwen2.5:latest": {"cost": "free", "good_at": "analysis, math, structured data"},
+    "qwen3:30b": {"cost": "free", "good_at": "analysis, math, structured data, reasoning"},
     "dolphin-llama3:8b": {"cost": "free", "good_at": "fast responses, general chat, brainstorming"},
     "dolphin-mistral:latest": {"cost": "free", "good_at": "creative writing, uncensored, marketing copy"},
     "nous-hermes2:latest": {"cost": "free", "good_at": "instruction following, general tasks"},
@@ -137,7 +137,7 @@ async def delegate_code_generation(
         description: What code to generate and its requirements.
         language: Programming language (default: python).
         context: Optional existing code or file context.
-        model: Specific model (default: qwen2.5-coder:7b, free).
+        model: Specific model (default: qwen3-coder:30b, free).
     """
     target = model or ROUTING["code"]
     system = f"You are an expert {language} developer. Write clean, production-ready code. Include type hints where appropriate. No unnecessary comments. Output ONLY the code unless explanation is specifically needed."
@@ -181,7 +181,7 @@ async def delegate_analysis(
     Args:
         text: The text or data to analyze.
         question: What specific question to answer about the text.
-        model: Specific model (default: qwen2.5, free).
+        model: Specific model (default: qwen3:30b, free).
     """
     target = model or ROUTING["analysis"]
     system = "You are a precise analyst. Answer the specific question asked. Be direct and evidence-based."
@@ -247,7 +247,7 @@ async def ask_model(
 
     Args:
         prompt: The prompt to send.
-        model: The model ID (e.g., 'grok-3-mini', 'qwen2.5-coder:7b', 'claude-sonnet-4-5').
+        model: The model ID (e.g., 'grok-3-mini', 'qwen3-coder:30b', 'claude-sonnet-4-5').
         system: Optional system prompt.
         max_tokens: Maximum response tokens.
     """
@@ -352,7 +352,7 @@ async def delegate_test_generation(
         code: The code to write tests for.
         framework: Test framework (default: pytest).
         language: Programming language.
-        model: Specific model (default: qwen2.5-coder:7b, free).
+        model: Specific model (default: qwen3-coder:30b, free).
     """
     target = model or ROUTING["code"]
     system = f"You are a test engineer. Write thorough {framework} tests. Cover happy path, edge cases, and error cases. Output ONLY test code."
@@ -431,7 +431,7 @@ async def roundtable_ask(
         "CEO": {"model": "claude-sonnet-4-5", "system": "You are the CEO — a visionary leader focused on ROI, scalability, and fast time-to-revenue."},
         "CFO": {"model": "claude-sonnet-4-5", "system": "You are the CFO — you analyze unit economics, margins, break-even, and enforce spending limits."},
         "CTO": {"model": "claude-sonnet-4-5", "system": "You are the CTO — you evaluate technical feasibility, pick stacks, estimate effort, and flag risks."},
-        "Risk Manager": {"model": "qwen2.5:latest", "system": "You are the Risk Manager — you identify what can go wrong and assign probability/severity."},
+        "Risk Manager": {"model": "qwen3:30b", "system": "You are the Risk Manager — you identify what can go wrong and assign probability/severity."},
         "Market Researcher": {"model": "grok-3-mini", "system": "You are the Market Researcher — you find data-driven insights on market size, competitors, and trends."},
         "Devil's Advocate": {"model": "nous-hermes2:latest", "system": "You are the Devil's Advocate — you challenge assumptions and find fatal flaws."},
     }
@@ -465,7 +465,7 @@ async def delegate_batch(
 
     Args:
         tasks_json: JSON array of tasks, each with 'model', 'prompt', and optional 'system'.
-                    Example: [{"model": "qwen2.5-coder:7b", "prompt": "Write a hello world"},
+                    Example: [{"model": "qwen3-coder:30b", "prompt": "Write a hello world"},
                               {"model": "grok-3-mini", "prompt": "What is Python?"}]
     """
     try:

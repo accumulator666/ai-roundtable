@@ -17,12 +17,12 @@ PROXY_MAP = {
 }
 
 # Models available on R730 (192.168.50.179 / 10.0.0.2 via 10G SFP+)
-# Tesla M40 24GB VRAM, 128GB RAM. Updated 2026-03-24.
+# Tesla P40 24GB VRAM, 128GB RAM. Updated 2026-06-19.
 R730_MODELS = {
     "deepseek-coder:33b",
     "deepseek-r1:32b",
-    "qwen2.5:32b",
-    "qwen2.5:7b",
+    "qwen3:30b-a3b-instruct-2507-q4_K_M",
+    "qwen3-coder:30b",
     "qwen2.5-coder:7b",
     "wizardlm-uncensored:13b",
     "dolphin-mixtral:latest",
@@ -82,7 +82,8 @@ AUTO_ROUTE_PATTERNS = {
 
 # Alias :latest tags to exact tags available on R730
 MODEL_ALIASES = {
-    "qwen2.5:latest": "qwen2.5:7b",
+    "qwen3:latest": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+    "qwen3-coder:latest": "qwen3-coder:30b",
     "qwen2.5-coder:latest": "qwen2.5-coder:7b",
     "nous-hermes2": "nous-hermes2:latest",
     "dolphin-llama3": "dolphin-llama3:8b",
@@ -91,7 +92,7 @@ MODEL_ALIASES = {
     "deepseek-coder": "deepseek-coder:33b",
     "deepseek-r1": "deepseek-r1:32b",
     "wizardlm-uncensored": "wizardlm-uncensored:13b",
-    "qwen2.5": "qwen2.5:7b",
+    "qwen3": "qwen3:30b-a3b-instruct-2507-q4_K_M",
 }
 
 

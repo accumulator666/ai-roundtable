@@ -148,7 +148,7 @@ Test fixtures in `tests/conftest.py` provide httpx clients with hardcoded `BASE_
 
 **Auto-routing** (`model: "auto"`): coding -> GPT-5.2, creative -> GPT-5.2, research -> Grok-3, image -> Gemini 2.0 Flash, default -> Claude Sonnet 4.5. Patterns defined in `AUTO_ROUTE_PATTERNS`.
 
-**Model aliases** (`MODEL_ALIASES`): `:latest` tags resolve to exact R730 versions (e.g., `qwen2.5:latest` -> `qwen2.5:7b`). Always update `MODEL_ALIASES` when adding new Ollama models.
+**Model aliases** (`MODEL_ALIASES`): `:latest` tags resolve to exact R730 versions (e.g., `qwen3:latest` -> `qwen3:30b`). Always update `MODEL_ALIASES` when adding new Ollama models.
 
 **Fallback chain**: `MODEL_TO_PROXY` -> `R730_MODELS` -> R730 Ollama. Unknown models fall through to R730 since local Ollama is not running.
 
