@@ -1035,6 +1035,11 @@ Rules:
                 r["company_id"] = str(r["company_id"])
             if r.get("occurred_at"):
                 r["occurred_at"] = r["occurred_at"].isoformat()
+            if isinstance(r.get("details"), str):
+                try:
+                    r["details"] = json.loads(r["details"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
         return {"company": COMPANY_CODE, "count": len(rows), "activity": rows}
 
     # Agent job endpoints
