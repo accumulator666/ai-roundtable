@@ -5,6 +5,7 @@ All queries are company-scoped via company_id.
 """
 
 import os
+import json
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -166,6 +167,21 @@ CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_tasks_company ON project_tasks(assigned_company);
 CREATE INDEX IF NOT EXISTS idx_project_tasks_status ON project_tasks(status);
+
+-- Audit log (governance Phase 1) — APPEND-ONLY. Never UPDATE/DELETE.
+CREATE TABLE IF NOT EXISTS activity_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES companies(id),
+    actor_type TEXT NOT NULL,          -- 'model' | 'agent' | 'user' | 'system'
+    actor TEXT NOT NULL,               -- model id / participant name / 'system'
+    action TEXT NOT NULL,              -- 'model_call' | 'decision_detected' | 'decision_approved' | 'decision_rejected'
+    entity_type TEXT,                  -- 'model_call' | 'decision' | 'project'
+    entity_id TEXT,
+    details JSONB DEFAULT '{}',
+    occurred_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_activity_company ON activity_log(company_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_action ON activity_log(company_id, action);
 """
 
 # Seed companies (idempotent — uses ON CONFLICT)
@@ -339,6 +355,40 @@ async def get_recent_decisions(company_id: UUID, limit: int = 20) -> list[dict]:
         ORDER BY created_at DESC LIMIT $2
     """, company_id, limit)
     return [dict(r) for r in rows]
+
+
+async def get_activity(company_id: UUID, limit: int = 100,
+                       action: Optional[str] = None) -> list[dict]:
+    pool = await get_pool()
+    if action:
+        rows = await pool.fetch("""
+            SELECT * FROM activity_log
+            WHERE company_id = $1 AND action = $2
+            ORDER BY occurred_at DESC LIMIT $3
+        """, company_id, action, limit)
+    else:
+        rows = await pool.fetch("""
+            SELECT * FROM activity_log
+            WHERE company_id = $1
+            ORDER BY occurred_at DESC LIMIT $2
+        """, company_id, limit)
+    return [dict(r) for r in rows]
+
+
+async def log_event(company_id: UUID, actor_type: str, actor: str, action: str,
+                    entity_type: Optional[str] = None, entity_id: Optional[str] = None,
+                    details: Optional[dict] = None) -> None:
+    """Append-only audit write. NEVER raises — audit failure must not break a meeting."""
+    try:
+        pool = await get_pool()
+        await pool.execute("""
+            INSERT INTO activity_log
+                (company_id, actor_type, actor, action, entity_type, entity_id, details)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        """, company_id, actor_type, actor, action, entity_type, entity_id,
+             json.dumps(details or {}))
+    except Exception as e:
+        logger.warning(f"audit log_event failed ({action}): {e}")
 
 
 # ============================================================
