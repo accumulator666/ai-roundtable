@@ -93,6 +93,7 @@ MODEL_ALIASES = {
     "deepseek-r1": "deepseek-r1:32b",
     "wizardlm-uncensored": "wizardlm-uncensored:13b",
     "qwen3": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+    "qwen3:30b": "qwen3:30b-a3b-instruct-2507-q4_K_M",
 }
 
 
